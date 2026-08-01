@@ -8,7 +8,7 @@ const COLOR_MAP = {
 
 const LABELS = { skip: 'Ø', reverse: '⇄', '+2': '+2', wild: '★', 'wild+4': '+4' };
 
-export default function UnoCard({ card, onClick, disabled, faceDown, size = 'md', selected }) {
+export default function UnoCard({ card, onClick, disabled, faceDown, size = 'md', selected, highlighted }) {
   if (faceDown) {
     return (
       <div
@@ -25,10 +25,6 @@ export default function UnoCard({ card, onClick, disabled, faceDown, size = 'md'
   const label = LABELS[card.value] || card.value;
   const sizeClasses = size === 'sm' ? 'w-10 h-14 text-sm' : 'w-14 h-20 text-lg';
 
-  // No onClick means this is a display-only card (e.g. the discard pile) —
-  // render it as a plain, non-focusable div so it never shows an
-  // interactive cursor or a11y focus ring for something that isn't
-  // actually clickable.
   if (!onClick) {
     return (
       <div
@@ -40,13 +36,18 @@ export default function UnoCard({ card, onClick, disabled, faceDown, size = 'md'
     );
   }
 
+  // Highlighted = playable hint ring (bright signal green glow)
+  const highlightClasses = highlighted
+    ? 'ring-2 ring-offset-1 ring-offset-ink-900 ring-emerald-400 -translate-y-1.5 shadow-lg shadow-emerald-500/30'
+    : '';
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       style={{ background: palette.bg, color: palette.text }}
-      className={`rounded-lg border-2 flex items-center justify-center font-display font-bold shrink-0 transition-transform ${sizeClasses} ${
+      className={`rounded-lg border-2 flex items-center justify-center font-display font-bold shrink-0 transition-transform ${sizeClasses} ${highlightClasses} ${
         selected ? '-translate-y-2 border-cipher-500' : 'border-white/20'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:-translate-y-1.5 cursor-pointer'}`}
     >
