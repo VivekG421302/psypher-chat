@@ -323,27 +323,24 @@ export default function GamesDrawer({ open, onClose, roomId, identity, memberCou
                   const GameComponent = GAME_COMPONENTS[activeGameId];
                   return (
                     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                      <GameComponent roomId={roomId} identity={identity} connected={chat.connected} />
+                      <GameComponent
+                        roomId={roomId}
+                        identity={identity}
+                        connected={chat.connected}
+                        chat={chat}
+                        onClose={() => setActiveGameId(null)}
+                      />
                     </div>
                   );
                 })()}
 
+              {/* Reaction burst floats over the game area — triggered from within the game via chat prop */}
               {activeGameId && (
-                <>
-                  <GameReactionBurst reactions={chat.gameReactions} />
-                  <GameReactTrigger onPick={chat.sendGameReaction} />
-                </>
+                <GameReactionBurst reactions={chat.gameReactions} />
               )}
             </div>
 
-            {activeGameId && (
-              <InGameChat
-                messages={chat.messages}
-                onSend={chat.sendMessage}
-                onTyping={chat.setTyping}
-                typingUser={chat.typingUser}
-              />
-            )}
+            {/* InGameChat removed — inline chat bar now lives inside each game component */}
           </motion.aside>
         </>
       )}
