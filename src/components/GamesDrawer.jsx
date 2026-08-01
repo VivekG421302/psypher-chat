@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ChevronLeft, Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, ChevronLeft, Send, MessageSquare, ChevronDown, ChevronUp, Smile } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { GAME_COMPONENTS } from '../games/registry.js';
 import Avatar from './Avatar.jsx';
+import QuickReactBar from './QuickReactBar.jsx';
 
 function useCallouts(messages, open) {
   const [callouts, setCallouts] = useState([]);
@@ -157,6 +158,83 @@ function CalloutStack({ callouts }) {
   );
 }
 
+/**
+ * Floating, rising-and-fading emoji particles for the minigame — a quick
+ * way to react to a move without leaving the game (like a live-stream
+ * reaction burst). Driven by the room-wide 'room:reaction' relay, so both
+ * players see every burst, not just the sender.
+ */
+function GameReactionBurst({ reactions }) {
+  const [particles, setParticles] = useState([]);
+  const lastLenRef = useRef(0);
+
+  useEffect(() => {
+    if (reactions.length <= lastLenRef.current) {
+      lastLenRef.current = reactions.length;
+      return;
+    }
+    const fresh = reactions.slice(lastLenRef.current);
+    lastLenRef.current = reactions.length;
+
+    const spawned = fresh.map((r) => ({
+      uid: `${r.id}-${Math.random()}`,
+      emoji: r.emoji,
+      x: 20 + Math.random() * 60,
+    }));
+    setParticles((prev) => [...prev, ...spawned]);
+    spawned.forEach((p) => {
+      setTimeout(() => setParticles((prev) => prev.filter((x) => x.uid !== p.uid)), 1900);
+    });
+  }, [reactions]);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden z-20">
+      <AnimatePresence>
+        {particles.map((p) => (
+          <motion.span
+            key={p.uid}
+            initial={{ opacity: 1, y: 0, scale: 0.6 }}
+            animate={{ opacity: 0, y: -180, scale: 1.4 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.8, ease: 'easeOut' }}
+            className="absolute bottom-16 text-3xl"
+            style={{ left: `${p.x}%` }}
+          >
+            {p.emoji}
+          </motion.span>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function GameReactTrigger({ onPick }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="absolute bottom-4 right-4 z-20">
+      <AnimatePresence>
+        {open && (
+          <QuickReactBar
+            className="absolute bottom-full mb-2 right-0"
+            onPick={(emoji) => {
+              onPick(emoji);
+              setOpen(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-10 h-10 rounded-full bg-ink-800 border border-ink-600 flex items-center justify-center text-mist-300 hover:border-signal-500/60 hover:text-signal-500 shadow-lg enabled:cursor-pointer transition-colors"
+        aria-label="Send a reaction"
+      >
+        <Smile size={18} />
+      </button>
+    </div>
+  );
+}
+
 export default function GamesDrawer({ open, onClose, roomId, identity, memberCount, chat }) {
   const [games, setGames] = useState([]);
   const [activeGameId, setActiveGameId] = useState(null);
@@ -245,6 +323,13 @@ export default function GamesDrawer({ open, onClose, roomId, identity, memberCou
                   const GameComponent = GAME_COMPONENTS[activeGameId];
                   return <GameComponent roomId={roomId} identity={identity} connected={chat.connected} />;
                 })()}
+
+              {activeGameId && (
+                <>
+                  <GameReactionBurst reactions={chat.gameReactions} />
+                  <GameReactTrigger onPick={chat.sendGameReaction} />
+                </>
+              )}
             </div>
 
             {activeGameId && (

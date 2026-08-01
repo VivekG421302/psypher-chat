@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, ShieldOff, Users2 } from 'lucide-react';
 import { useProfile } from '../context/ProfileContext.jsx';
@@ -11,6 +11,7 @@ import { colorForName } from '../lib/crypto.js';
 import RoomHeader from '../components/RoomHeader.jsx';
 import MessageList from '../components/MessageList.jsx';
 import MessageInput from '../components/MessageInput.jsx';
+import SelectionBar from '../components/SelectionBar.jsx';
 import GamesDrawer from '../components/GamesDrawer.jsx';
 import DecryptText from '../components/DecryptText.jsx';
 
@@ -88,8 +89,11 @@ export default function Room() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { profile } = useProfile();
+  const { notify } = useToast();
   const [identity, setIdentity] = useState(null);
   const [gamesOpen, setGamesOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [editingMessage, setEditingMessage] = useState(null);
 
   useEffect(() => {
     const remembered = getRememberedRoom(roomId);
@@ -107,6 +111,58 @@ export default function Room() {
   const viewportHeight = useViewportHeight();
 
   const memberCount = useMemo(() => chat.members.length, [chat.members]);
+  const selectMode = selectedIds.size > 0;
+
+  const enterSelectMode = useCallback((id) => {
+    setEditingMessage(null);
+    setSelectedIds(new Set([id]));
+  }, []);
+
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const cancelSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const copyText = useCallback(
+    (text) => {
+      navigator.clipboard?.writeText(text);
+      notify('Copied to clipboard.', 'success', 1500);
+    },
+    [notify]
+  );
+
+  const selectedMessages = useMemo(
+    () => chat.messages.filter((m) => m.kind === 'message' && selectedIds.has(m.id)),
+    [chat.messages, selectedIds]
+  );
+  const allSelectedAreMine = selectedMessages.length > 0 && selectedMessages.every((m) => m.mine);
+
+  function copySelected() {
+    const text = selectedMessages.map((m) => `${m.senderName}: ${m.text}`).join('\n');
+    copyText(text);
+    cancelSelection();
+  }
+
+  function deleteSelected() {
+    selectedMessages.forEach((m) => chat.deleteMessage(m.id));
+    cancelSelection();
+  }
+
+  function startEdit(message) {
+    setSelectedIds(new Set());
+    setEditingMessage(message);
+  }
+
+  function submitEdit(id, text) {
+    chat.editMessage(id, text);
+    setEditingMessage(null);
+  }
 
   if (!identity) {
     return <JoinGate roomId={roomId} onJoined={setIdentity} />;
@@ -158,13 +214,43 @@ export default function Room() {
         onToggleGames={() => setGamesOpen((v) => !v)}
         gamesOpen={gamesOpen}
       />
-      <MessageList messages={chat.messages} typingUser={chat.typingUser} viewportHeight={viewportHeight} />
+      <MessageList
+        messages={chat.messages}
+        typingUser={chat.typingUser}
+        viewportHeight={viewportHeight}
+        myUserId={identity.userId}
+        selectMode={selectMode}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelect}
+        onEnterSelectMode={enterSelectMode}
+        onEdit={startEdit}
+        onDelete={(id) => chat.deleteMessage(id)}
+        onReact={(id, emoji) => chat.reactToMessage(id, emoji)}
+        onCopy={copyText}
+      />
       {!chat.connected && (
         <div className="px-4 py-2 bg-danger/10 border-t border-danger/30 text-danger text-xs text-center shrink-0">
           Reconnecting… messages sent now may not go through until this resolves.
         </div>
       )}
-      <MessageInput onSend={chat.sendMessage} onTyping={chat.setTyping} disabled={!chat.connected} />
+      {selectMode ? (
+        <SelectionBar
+          count={selectedIds.size}
+          allSelectedAreMine={allSelectedAreMine}
+          onCancel={cancelSelection}
+          onCopy={copySelected}
+          onDelete={deleteSelected}
+        />
+      ) : (
+        <MessageInput
+          onSend={chat.sendMessage}
+          onTyping={chat.setTyping}
+          disabled={!chat.connected}
+          editingMessage={editingMessage}
+          onSubmitEdit={submitEdit}
+          onCancelEdit={() => setEditingMessage(null)}
+        />
+      )}
       <GamesDrawer
         open={gamesOpen}
         onClose={() => setGamesOpen(false)}
