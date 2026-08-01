@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ChevronLeft, Send } from 'lucide-react';
+import { X, ChevronLeft, Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { GAME_COMPONENTS } from '../games/registry.js';
 import Avatar from './Avatar.jsx';
@@ -28,10 +28,27 @@ function useCallouts(messages, open) {
   return callouts;
 }
 
-function QuickChatBar({ onSend, onTyping }) {
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * A persistent, collapsible chat feed inside the games drawer. Previously
+ * only *new* messages surfaced (as transient callouts) while a game was
+ * open — the full conversation was invisible behind the drawer, especially
+ * on mobile where the drawer covers the whole screen. This keeps the real
+ * history reachable without needing to close the game.
+ */
+function InGameChat({ messages, onSend, onTyping, typingUser }) {
+  const [expanded, setExpanded] = useState(true);
   const [value, setValue] = useState('');
+  const listRef = useRef(null);
   const typingActive = useRef(false);
   const typingStopTimer = useRef(null);
+
+  useEffect(() => {
+    if (expanded) listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages, expanded, typingUser]);
 
   function handleChange(e) {
     setValue(e.target.value);
@@ -56,30 +73,69 @@ function QuickChatBar({ onSend, onTyping }) {
     onTyping(false);
   }
 
+  const realMessages = messages.filter((m) => m.kind === 'message');
+
   return (
-    <form onSubmit={submit} className="border-t border-ink-700 bg-ink-900 p-2.5 flex items-center gap-2">
-      <input
-        value={value}
-        onChange={handleChange}
-        placeholder="Say something without leaving the game…"
-        maxLength={1000}
-        className="flex-1 rounded-lg bg-ink-800 border border-ink-600 px-3 py-2 text-sm text-mist-100 placeholder:text-mist-700 focus:border-signal-500 outline-none transition-colors"
-      />
+    <div className="border-t border-ink-700 bg-ink-900 shrink-0">
       <button
-        type="submit"
-        disabled={!value.trim()}
-        className="shrink-0 rounded-lg bg-signal-500 disabled:bg-ink-700 disabled:text-mist-700 disabled:cursor-not-allowed enabled:cursor-pointer text-ink-950 p-2 hover:bg-signal-300 transition-colors"
-        aria-label="Send message"
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between px-3 py-2 text-xs text-mist-400 hover:text-mist-100 transition-colors enabled:cursor-pointer"
       >
-        <Send size={16} />
+        <span className="flex items-center gap-1.5">
+          <MessageSquare size={13} />
+          Chat {realMessages.length > 0 ? `(${realMessages.length})` : ''}
+        </span>
+        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
-    </form>
+
+      {expanded && (
+        <div ref={listRef} className="max-h-40 overflow-y-auto px-3 pb-2 space-y-2">
+          {realMessages.length === 0 && <p className="text-xs text-mist-700 text-center py-3">No messages yet.</p>}
+          {realMessages.map((m) => (
+            <div key={m.id} className={`flex items-end gap-1.5 ${m.mine ? 'flex-row-reverse' : ''}`}>
+              <Avatar name={m.senderName} color={m.senderColor} size={20} />
+              <div className={`max-w-[75%] flex flex-col ${m.mine ? 'items-end' : 'items-start'}`}>
+                <div
+                  className={`rounded-lg px-2.5 py-1.5 text-xs leading-snug break-words ${
+                    m.mine ? 'bg-signal-500 text-ink-950' : 'bg-ink-700 text-mist-100'
+                  }`}
+                >
+                  {m.text}
+                </div>
+                <span className="text-[9px] text-mist-700 mt-0.5">{formatTime(m.ts)}</span>
+              </div>
+            </div>
+          ))}
+          {typingUser && <p className="text-[10px] text-mist-600 pl-1">{typingUser} is typing…</p>}
+        </div>
+      )}
+
+      <form onSubmit={submit} className="flex items-center gap-2 px-2.5 pb-2.5">
+        <input
+          value={value}
+          onChange={handleChange}
+          onFocus={() => setExpanded(true)}
+          placeholder="Say something without leaving the game…"
+          maxLength={1000}
+          className="flex-1 rounded-lg bg-ink-800 border border-ink-600 px-3 py-2 text-sm text-mist-100 placeholder:text-mist-700 focus:border-signal-500 outline-none transition-colors"
+        />
+        <button
+          type="submit"
+          disabled={!value.trim()}
+          className="shrink-0 rounded-lg bg-signal-500 disabled:bg-ink-700 disabled:text-mist-700 disabled:cursor-not-allowed enabled:cursor-pointer text-ink-950 p-2 hover:bg-signal-300 transition-colors"
+          aria-label="Send message"
+        >
+          <Send size={16} />
+        </button>
+      </form>
+    </div>
   );
 }
 
 function CalloutStack({ callouts }) {
   return (
-    <div className="pointer-events-none absolute top-14 left-3 right-3 z-10 flex flex-col gap-2">
+    <div className="pointer-events-none absolute top-3 left-3 right-3 z-10 flex flex-col gap-2">
       <AnimatePresence>
         {callouts.map((c) => (
           <motion.div
@@ -191,7 +247,14 @@ export default function GamesDrawer({ open, onClose, roomId, identity, memberCou
                 })()}
             </div>
 
-            {activeGameId && <QuickChatBar onSend={chat.sendMessage} onTyping={chat.setTyping} />}
+            {activeGameId && (
+              <InGameChat
+                messages={chat.messages}
+                onSend={chat.sendMessage}
+                onTyping={chat.setTyping}
+                typingUser={chat.typingUser}
+              />
+            )}
           </motion.aside>
         </>
       )}

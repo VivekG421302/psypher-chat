@@ -1,13 +1,27 @@
-import { useState } from 'react';
-import { RotateCcw, AlertTriangle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { RotateCcw, AlertTriangle, Palette } from 'lucide-react';
 import UnoCard from './UnoCard.jsx';
 import { useUno } from './useUno.js';
 
 const COLOR_SWATCH = { R: '#D6373F', Y: '#E8B93D', G: '#2E9E63', B: '#3576E0' };
+const COLOR_NAMES = { R: 'Red', Y: 'Yellow', G: 'Green', B: 'Blue' };
 
 export default function UnoGame({ roomId, connected }) {
   const { state, waiting, error, playCard, drawCard, callUno, catchUno, restart } = useUno(roomId, connected);
   const [pendingWild, setPendingWild] = useState(null);
+  const [colorBanner, setColorBanner] = useState(null);
+  const lastSeenColorSeq = useRef(0);
+
+  // Announce every color change to BOTH players with a hard-to-miss banner
+  // (not just a line buried in the scrolling log).
+  useEffect(() => {
+    const change = state?.lastColorChange;
+    if (!change || change.seq === lastSeenColorSeq.current) return;
+    lastSeenColorSeq.current = change.seq;
+    setColorBanner(change);
+    const t = setTimeout(() => setColorBanner(null), 3500);
+    return () => clearTimeout(t);
+  }, [state?.lastColorChange]);
 
   if (!connected) {
     return (
@@ -56,6 +70,23 @@ export default function UnoGame({ roomId, connected }) {
         </div>
       )}
 
+      {colorBanner && (
+        <div
+          className="flex items-center gap-2 text-xs rounded-lg px-3 py-2 border animate-pulse-soft"
+          style={{
+            borderColor: COLOR_SWATCH[colorBanner.color],
+            background: `${COLOR_SWATCH[colorBanner.color]}22`,
+            color: '#fff',
+          }}
+        >
+          <Palette size={14} />
+          <span>
+            <strong>{colorBanner.byLabel}</strong> changed the color to{' '}
+            <strong>{colorBanner.colorName}</strong>
+          </span>
+        </div>
+      )}
+
       {state.winner && (
         <div className="rounded-xl border border-signal-500/40 bg-signal-700/10 p-4 text-center">
           <p className="font-display text-sm text-signal-500 mb-2">GAME OVER</p>
@@ -64,16 +95,22 @@ export default function UnoGame({ roomId, connected }) {
           </p>
           <button
             onClick={restart}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-signal-500 text-ink-950 text-sm font-medium px-3 py-1.5 hover:bg-signal-300 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-signal-500 text-ink-950 text-sm font-medium px-3 py-1.5 hover:bg-signal-300 enabled:cursor-pointer transition-colors"
           >
             <RotateCcw size={14} /> Play again
           </button>
         </div>
       )}
 
-      {/* Opponent */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-mist-500">Opponent · {state.opponentCount} cards</span>
+      {/* Opponent — highlighted whenever it's their turn */}
+      <div
+        className={`flex items-center justify-between rounded-xl transition-all ${
+          !state.myTurn && !state.winner ? 'ring-2 ring-danger/60 bg-danger/5 px-2 py-1.5' : 'px-2 py-1.5'
+        }`}
+      >
+        <span className={`text-xs ${!state.myTurn && !state.winner ? 'text-danger font-medium' : 'text-mist-500'}`}>
+          Opponent · {state.opponentCount} cards {!state.myTurn && !state.winner ? '· playing now' : ''}
+        </span>
         <div className="flex -space-x-6">
           {Array.from({ length: Math.min(state.opponentCount, 7) }).map((_, i) => (
             <UnoCard key={i} faceDown size="sm" />
@@ -90,17 +127,23 @@ export default function UnoGame({ roomId, connected }) {
           </div>
           {state.discardTop && (
             <div className="flex flex-col items-center gap-1">
-              <UnoCard card={state.discardTop} disabled />
-              <span
-                className="w-3 h-3 rounded-full border border-white/30"
-                style={{ background: COLOR_SWATCH[state.activeColor] || '#888' }}
-                title={`Active color: ${state.activeColor}`}
-              />
+              <UnoCard card={state.discardTop} />
+              <span className="flex items-center gap-1">
+                <span
+                  className="w-3 h-3 rounded-full border border-white/30"
+                  style={{ background: COLOR_SWATCH[state.activeColor] || '#888' }}
+                />
+                <span className="text-[10px] text-mist-600">{COLOR_NAMES[state.activeColor] || state.activeColor}</span>
+              </span>
             </div>
           )}
         </div>
 
-        <p className={`text-xs font-display tracking-widest ${state.myTurn ? 'text-cipher-500' : 'text-mist-600'}`}>
+        <p
+          className={`text-xs font-display tracking-widest px-3 py-1 rounded-full ${
+            state.myTurn ? 'text-cipher-500 bg-cipher-700/10' : 'text-danger bg-danger/10'
+          }`}
+        >
           {state.myTurn ? 'YOUR TURN' : "OPPONENT'S TURN"}
         </p>
 
@@ -136,9 +179,15 @@ export default function UnoGame({ roomId, connected }) {
         ))}
       </div>
 
-      {/* My hand */}
-      <div>
-        <p className="text-xs text-mist-500 mb-2">Your hand · {state.myHand.length} cards</p>
+      {/* My hand — highlighted whenever it's my turn */}
+      <div
+        className={`rounded-xl transition-all ${
+          state.myTurn && !state.winner ? 'ring-2 ring-cipher-500/60 bg-cipher-700/5 p-2' : 'p-2'
+        }`}
+      >
+        <p className={`text-xs mb-2 ${state.myTurn && !state.winner ? 'text-cipher-500 font-medium' : 'text-mist-500'}`}>
+          Your hand · {state.myHand.length} cards {state.myTurn && !state.winner ? '· your move' : ''}
+        </p>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {state.myHand.map((card, i) => (
             <UnoCard key={i} card={card} onClick={() => handleCardClick(card)} disabled={!state.myTurn || !!state.winner} />
@@ -156,13 +205,13 @@ export default function UnoGame({ roomId, connected }) {
                   key={key}
                   onClick={() => chooseColor(key)}
                   style={{ background: hex }}
-                  className="rounded-lg py-3 text-white text-sm font-semibold"
+                  className="rounded-lg py-3 text-white text-sm font-semibold enabled:cursor-pointer"
                 >
-                  {key}
+                  {COLOR_NAMES[key]}
                 </button>
               ))}
             </div>
-            <button onClick={() => setPendingWild(null)} className="mt-3 text-xs text-mist-500 hover:text-mist-100">
+            <button onClick={() => setPendingWild(null)} className="mt-3 text-xs text-mist-500 hover:text-mist-100 enabled:cursor-pointer">
               Cancel
             </button>
           </div>
