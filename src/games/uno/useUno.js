@@ -3,13 +3,20 @@ import { getSocket } from '../../lib/socket.js';
 
 const GAME_ID = 'uno';
 
-export function useUno(roomId) {
+export function useUno(roomId, ready) {
   const [state, setState] = useState(null);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!roomId) return undefined;
+    if (!ready) {
+      setState(null);
+      setWaiting(false);
+    }
+  }, [ready]);
+
+  useEffect(() => {
+    if (!roomId || !ready) return undefined;
     const socket = getSocket();
 
     function onState(payload) {
@@ -35,6 +42,10 @@ export function useUno(roomId) {
     socket.on('game:waiting', onWaiting);
     socket.on('game:error', onError);
     socket.on('game:reset', onReset);
+    // 'ready' only flips true once the chat socket has confirmed room:join
+    // server-side, so this is guaranteed not to race ahead of it — a plain
+    // socket 'connect' listener here previously could fire before the room
+    // rejoin completed, silently dropping the game join after a reconnect.
     socket.emit('game:join', { roomId, gameId: GAME_ID });
 
     return () => {
@@ -43,7 +54,7 @@ export function useUno(roomId) {
       socket.off('game:error', onError);
       socket.off('game:reset', onReset);
     };
-  }, [roomId]);
+  }, [roomId, ready]);
 
   const act = useCallback(
     (action, payload = {}) => {

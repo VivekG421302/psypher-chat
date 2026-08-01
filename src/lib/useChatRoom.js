@@ -4,7 +4,8 @@ import { encryptText, decryptText } from './crypto.js';
 import { getRememberedRoom, rememberRoom, forgetRoom } from './storage.js';
 
 export function useChatRoom(roomId, identity) {
-  const [status, setStatus] = useState('connecting'); // connecting | joined | full | not_found | error
+  const [status, setStatus] = useState('connecting'); // connecting | joined | full | not_found
+  const [connected, setConnected] = useState(false);
   const [members, setMembers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [typingUser, setTypingUser] = useState(null);
@@ -31,9 +32,22 @@ export function useChatRoom(roomId, identity) {
       };
     }
 
+    function join() {
+      socket.emit('room:join', {
+        roomId,
+        userId: identity.userId,
+        name: identity.name,
+        color: identity.color,
+      });
+    }
+
     function onJoined(payload) {
       setStatus('joined');
+      setConnected(true);
       setMembers(payload.room.members);
+      // Full history replay on every (re)join, including reconnects — this
+      // also self-heals any messages that arrived while we were briefly
+      // disconnected (e.g. a mobile network blip or a Render cold start).
       Promise.all(payload.messages.map(decryptIncoming)).then(setMessages);
     }
 
@@ -63,19 +77,23 @@ export function useChatRoom(roomId, identity) {
       }
     }
 
+    function onDisconnect() {
+      setConnected(false);
+    }
+
     socket.on('room:joined', onJoined);
     socket.on('room:error', onError);
     socket.on('room:member_update', onMemberUpdate);
     socket.on('room:system', onSystem);
     socket.on('chat:message', onMessage);
     socket.on('chat:typing', onTyping);
+    socket.on('connect', join);
+    socket.on('disconnect', onDisconnect);
 
-    socket.emit('room:join', {
-      roomId,
-      userId: identity.userId,
-      name: identity.name,
-      color: identity.color,
-    });
+    // If the socket is already connected (e.g. we navigated here without a
+    // full page reload and reused the shared connection), 'connect' won't
+    // fire again on its own — join immediately in that case.
+    if (socket.connected) join();
 
     rememberRoom(roomId, { userId: identity.userId, name: identity.name });
 
@@ -86,6 +104,8 @@ export function useChatRoom(roomId, identity) {
       socket.off('room:system', onSystem);
       socket.off('chat:message', onMessage);
       socket.off('chat:typing', onTyping);
+      socket.off('connect', join);
+      socket.off('disconnect', onDisconnect);
       if (typingTimeout.current) clearTimeout(typingTimeout.current);
     };
   }, [roomId, identity?.userId, identity?.name, identity?.color]);
@@ -111,7 +131,7 @@ export function useChatRoom(roomId, identity) {
     forgetRoom(roomId);
   }, [roomId]);
 
-  return { status, members, messages, typingUser, sendMessage, setTyping, leaveRoom, socket: socketRef };
+  return { status, connected, members, messages, typingUser, sendMessage, setTyping, leaveRoom, socket: socketRef };
 }
 
 export { getRememberedRoom };

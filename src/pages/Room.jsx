@@ -159,13 +159,19 @@ export default function Room() {
         gamesOpen={gamesOpen}
       />
       <MessageList messages={chat.messages} typingUser={chat.typingUser} viewportHeight={viewportHeight} />
-      <MessageInput onSend={chat.sendMessage} onTyping={chat.setTyping} />
+      {!chat.connected && (
+        <div className="px-4 py-2 bg-danger/10 border-t border-danger/30 text-danger text-xs text-center shrink-0">
+          Reconnecting… messages sent now may not go through until this resolves.
+        </div>
+      )}
+      <MessageInput onSend={chat.sendMessage} onTyping={chat.setTyping} disabled={!chat.connected} />
       <GamesDrawer
         open={gamesOpen}
         onClose={() => setGamesOpen(false)}
         roomId={roomId}
         identity={identity}
         memberCount={memberCount}
+        chat={chat}
       />
     </div>
   );

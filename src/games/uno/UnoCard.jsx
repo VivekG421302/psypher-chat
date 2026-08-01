@@ -12,7 +12,7 @@ export default function UnoCard({ card, onClick, disabled, faceDown, size = 'md'
   if (faceDown) {
     return (
       <div
-        className={`rounded-lg border-2 border-ink-600 bg-ink-700 flex items-center justify-center shrink-0 ${
+        className={`rounded-lg border-2 border-ink-600 bg-ink-700 flex items-center justify-center shrink-0 cursor-default ${
           size === 'sm' ? 'w-8 h-12' : 'w-11 h-16'
         }`}
       >
@@ -23,6 +23,22 @@ export default function UnoCard({ card, onClick, disabled, faceDown, size = 'md'
 
   const palette = COLOR_MAP[card.color] || COLOR_MAP.wild;
   const label = LABELS[card.value] || card.value;
+  const sizeClasses = size === 'sm' ? 'w-10 h-14 text-sm' : 'w-14 h-20 text-lg';
+
+  // No onClick means this is a display-only card (e.g. the discard pile) —
+  // render it as a plain, non-focusable div so it never shows an
+  // interactive cursor or a11y focus ring for something that isn't
+  // actually clickable.
+  if (!onClick) {
+    return (
+      <div
+        style={{ background: palette.bg, color: palette.text }}
+        className={`rounded-lg border-2 border-white/20 flex items-center justify-center font-display font-bold shrink-0 cursor-default ${sizeClasses}`}
+      >
+        {label}
+      </div>
+    );
+  }
 
   return (
     <button
@@ -30,11 +46,9 @@ export default function UnoCard({ card, onClick, disabled, faceDown, size = 'md'
       onClick={onClick}
       disabled={disabled}
       style={{ background: palette.bg, color: palette.text }}
-      className={`rounded-lg border-2 flex items-center justify-center font-display font-bold shrink-0 transition-transform ${
-        size === 'sm' ? 'w-10 h-14 text-sm' : 'w-14 h-20 text-lg'
-      } ${selected ? '-translate-y-2 border-cipher-500' : 'border-white/20'} ${
-        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:-translate-y-1.5 cursor-pointer'
-      }`}
+      className={`rounded-lg border-2 flex items-center justify-center font-display font-bold shrink-0 transition-transform ${sizeClasses} ${
+        selected ? '-translate-y-2 border-cipher-500' : 'border-white/20'
+      } ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:-translate-y-1.5 cursor-pointer'}`}
     >
       {label}
     </button>

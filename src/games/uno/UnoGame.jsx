@@ -5,9 +5,19 @@ import { useUno } from './useUno.js';
 
 const COLOR_SWATCH = { R: '#D6373F', Y: '#E8B93D', G: '#2E9E63', B: '#3576E0' };
 
-export default function UnoGame({ roomId }) {
-  const { state, waiting, error, playCard, drawCard, callUno, catchUno, restart } = useUno(roomId);
+export default function UnoGame({ roomId, connected }) {
+  const { state, waiting, error, playCard, drawCard, callUno, catchUno, restart } = useUno(roomId, connected);
   const [pendingWild, setPendingWild] = useState(null);
+
+  if (!connected) {
+    return (
+      <div className="p-6 flex flex-col items-center text-center gap-2 text-mist-500">
+        <div className="w-6 h-6 border-2 border-danger border-t-transparent rounded-full animate-spin mb-2" />
+        <p className="font-display text-sm tracking-widest text-mist-100">RECONNECTING…</p>
+        <p className="text-sm">The game will pick back up automatically.</p>
+      </div>
+    );
+  }
 
   if (waiting || !state) {
     return (
@@ -98,21 +108,21 @@ export default function UnoGame({ roomId }) {
           <button
             onClick={drawCard}
             disabled={!state.myTurn || !!state.winner}
-            className="text-xs rounded-lg border border-ink-600 px-3 py-1.5 text-mist-300 hover:border-signal-500/60 disabled:opacity-40 transition-colors"
+            className="text-xs rounded-lg border border-ink-600 px-3 py-1.5 text-mist-300 hover:border-signal-500/60 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer transition-colors"
           >
             Draw card
           </button>
           <button
             onClick={callUno}
             disabled={!myHasUno || iCalledUno || !!state.winner}
-            className="text-xs rounded-lg border border-signal-500/50 px-3 py-1.5 text-signal-500 hover:bg-signal-700/10 disabled:opacity-40 transition-colors"
+            className="text-xs rounded-lg border border-signal-500/50 px-3 py-1.5 text-signal-500 hover:bg-signal-700/10 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer transition-colors"
           >
             Call UNO!
           </button>
           <button
             onClick={catchUno}
             disabled={!!state.winner}
-            className="text-xs rounded-lg border border-danger/50 px-3 py-1.5 text-danger hover:bg-danger/10 disabled:opacity-40 transition-colors"
+            className="text-xs rounded-lg border border-danger/50 px-3 py-1.5 text-danger hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer transition-colors"
           >
             Catch missed UNO
           </button>

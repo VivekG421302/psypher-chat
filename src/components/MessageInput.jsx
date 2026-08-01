@@ -3,7 +3,7 @@ import { Send, Smile } from 'lucide-react';
 
 const QUICK_EMOJI = ['😀', '😂', '😍', '😢', '😮', '😡', '👍', '👎', '🙏', '🎉', '🔥', '💀', '❤️', '🤝', '👀', '✨'];
 
-export default function MessageInput({ onSend, onTyping }) {
+export default function MessageInput({ onSend, onTyping, disabled }) {
   const [value, setValue] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const typingActive = useRef(false);
@@ -71,15 +71,16 @@ export default function MessageInput({ onSend, onTyping }) {
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Type an encrypted message…"
+          placeholder={disabled ? 'Reconnecting…' : 'Type an encrypted message…'}
           rows={1}
           maxLength={1000}
-          className="flex-1 resize-none rounded-xl bg-ink-800 border border-ink-600 px-3.5 py-2.5 text-sm text-mist-100 placeholder:text-mist-700 focus:border-signal-500 outline-none max-h-32 transition-colors"
+          disabled={disabled}
+          className="flex-1 resize-none rounded-xl bg-ink-800 border border-ink-600 px-3.5 py-2.5 text-sm text-mist-100 placeholder:text-mist-700 focus:border-signal-500 outline-none max-h-32 transition-colors disabled:opacity-50"
         />
         <button
           type="submit"
-          disabled={!value.trim()}
-          className="shrink-0 rounded-xl bg-signal-500 disabled:bg-ink-700 disabled:text-mist-700 text-ink-950 p-2.5 hover:bg-signal-300 transition-colors"
+          disabled={!value.trim() || disabled}
+          className="shrink-0 rounded-xl bg-signal-500 disabled:bg-ink-700 disabled:text-mist-700 disabled:cursor-not-allowed enabled:cursor-pointer text-ink-950 p-2.5 hover:bg-signal-300 transition-colors"
           aria-label="Send message"
         >
           <Send size={18} />
