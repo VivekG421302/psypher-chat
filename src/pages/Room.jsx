@@ -4,6 +4,7 @@ import { Loader2, ShieldOff, Users2 } from 'lucide-react';
 import { useProfile } from '../context/ProfileContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useChatRoom } from '../lib/useChatRoom.js';
+import { useViewportHeight } from '../lib/useViewportHeight.js';
 import { getRememberedRoom } from '../lib/storage.js';
 import { api } from '../lib/api.js';
 import { colorForName } from '../lib/crypto.js';
@@ -103,6 +104,7 @@ export default function Room() {
   }, [roomId]);
 
   const chat = useChatRoom(roomId, identity);
+  const viewportHeight = useViewportHeight();
 
   const memberCount = useMemo(() => chat.members.length, [chat.members]);
 
@@ -145,7 +147,10 @@ export default function Room() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div
+      className="flex flex-col overflow-hidden"
+      style={{ height: viewportHeight ? `${viewportHeight}px` : '100dvh' }}
+    >
       <RoomHeader
         roomId={roomId}
         members={chat.members}
@@ -153,7 +158,7 @@ export default function Room() {
         onToggleGames={() => setGamesOpen((v) => !v)}
         gamesOpen={gamesOpen}
       />
-      <MessageList messages={chat.messages} typingUser={chat.typingUser} />
+      <MessageList messages={chat.messages} typingUser={chat.typingUser} viewportHeight={viewportHeight} />
       <MessageInput onSend={chat.sendMessage} onTyping={chat.setTyping} />
       <GamesDrawer
         open={gamesOpen}

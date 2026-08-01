@@ -6,12 +6,12 @@ function formatTime(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function MessageList({ messages, typingUser }) {
+export default function MessageList({ messages, typingUser, viewportHeight }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages, typingUser]);
+  }, [messages, typingUser, viewportHeight]);
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3">
