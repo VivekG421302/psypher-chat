@@ -284,7 +284,7 @@ export default function GamesDrawer({ open, onClose, roomId, identity, memberCou
               </button>
             </div>
 
-            <div className="relative flex-1 overflow-y-auto">
+            <div className="relative flex-1 min-h-0 overflow-y-auto flex flex-col">
               <CalloutStack callouts={callouts} />
 
               {!activeGameId && (
@@ -321,7 +321,11 @@ export default function GamesDrawer({ open, onClose, roomId, identity, memberCou
                 GAME_COMPONENTS[activeGameId] &&
                 (() => {
                   const GameComponent = GAME_COMPONENTS[activeGameId];
-                  return <GameComponent roomId={roomId} identity={identity} connected={chat.connected} />;
+                  return (
+                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                      <GameComponent roomId={roomId} identity={identity} connected={chat.connected} />
+                    </div>
+                  );
                 })()}
 
               {activeGameId && (
