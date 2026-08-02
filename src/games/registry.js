@@ -1,5 +1,6 @@
 import UnoGame from './uno/UnoGame.jsx';
 import GuessWhoGame from './guesswho/GuessWhoGame.jsx';
+import TicTacToeGame from './tictactoe/TicTacToeGame.jsx';
 
 /**
  * Add future games here, keyed by the same `id` the backend registers in
@@ -10,4 +11,5 @@ import GuessWhoGame from './guesswho/GuessWhoGame.jsx';
 export const GAME_COMPONENTS = {
   uno: UnoGame,
   guesswho: GuessWhoGame,
+  tictactoe: TicTacToeGame,
 };
