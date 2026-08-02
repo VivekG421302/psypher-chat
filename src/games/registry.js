@@ -1,4 +1,6 @@
 import UnoGame from './uno/UnoGame.jsx';
+import GuessWhoGame from './guesswho/GuessWhoGame.jsx';
+import TicTacToeGame from './tictactoe/TicTacToeGame.jsx';
 import GlassBridgeGame from './glass-bridge/GlassBridgeGame.jsx';
 
 /**
@@ -9,5 +11,7 @@ import GlassBridgeGame from './glass-bridge/GlassBridgeGame.jsx';
  */
 export const GAME_COMPONENTS = {
   uno: UnoGame,
+  guesswho: GuessWhoGame,
+  tictactoe: TicTacToeGame,
   'glass-bridge': GlassBridgeGame,
 };
