@@ -134,15 +134,16 @@ function PromotionModal({ color, onPick }) {
 
 // ─── The board ──────────────────────────────────────────────────
 function Board({ board, myColor, selected, legalTargets, lastMove, onSquareClick, myTurn, winner }) {
-  // Flip board for black
-  const rows = myColor === 'b' ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
+  // White: rank 8 (row 0) at top, rank 1 (row 7) at bottom — own pieces at bottom.
+  // Black: rank 1 (row 7) at top, rank 8 (row 0) at bottom — own pieces at bottom.
+  const rows = myColor === 'b' ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
   const cols = myColor === 'b' ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
 
   const legalSet = new Set(legalTargets.map(([r,c]) => `${r},${c}`));
 
   return (
     <div className="w-full max-w-[340px] mx-auto select-none">
-      {/* File labels top */}
+      {/* File labels */}
       <div className="flex pl-5 mb-0.5">
         {cols.map(c => (
           <div key={c} className="flex-1 text-center text-[9px] text-mist-700">{FILE[c]}</div>
@@ -173,8 +174,9 @@ function Board({ board, myColor, selected, legalTargets, lastMove, onSquareClick
               isSelected || isTarget
             );
 
+            // Square background
             let bg = isDark ? 'bg-[#4a6741]' : 'bg-[#eeeed2]';
-            if (isSelected)             bg = 'bg-cipher-500/60';
+            if (isSelected)                  bg = isDark ? 'bg-[#829c2c]' : 'bg-[#f5f578]';
             else if (isLastFrom || isLastTo) bg = isDark ? 'bg-[#6b7f2b]' : 'bg-[#cdd16f]';
 
             return (
@@ -185,20 +187,51 @@ function Board({ board, myColor, selected, legalTargets, lastMove, onSquareClick
                   clickable || isTarget ? 'cursor-pointer' : 'cursor-default'
                 }`}
               >
-                {/* Legal move dot / capture ring */}
-                {isTarget && !isCapture && (
-                  <div className="absolute w-[32%] h-[32%] rounded-full bg-black/25 pointer-events-none" />
-                )}
-                {isTarget && isCapture && (
-                  <div className="absolute inset-0 rounded-none border-[3px] border-black/30 pointer-events-none" />
+                {/* Selected border ring — bright yellow-green inset */}
+                {isSelected && (
+                  <div className="absolute inset-0 border-[3px] border-yellow-300/90 pointer-events-none z-10" />
                 )}
 
-                {/* Piece */}
+                {/* Legal move dot */}
+                {isTarget && !isCapture && (
+                  <div className="absolute w-[34%] h-[34%] rounded-full bg-black/30 pointer-events-none z-10" />
+                )}
+                {/* Capture ring */}
+                {isTarget && isCapture && (
+                  <div className="absolute inset-0 border-[4px] border-black/40 pointer-events-none z-10" />
+                )}
+
+                {/* Piece — rendered with strong contrast on both square colors */}
                 {p && (
                   <span
-                    className={`text-[min(4vw,22px)] leading-none pointer-events-none drop-shadow-sm ${
-                      pieceColor === 'w' ? 'text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]' : 'text-[#1a1a1a]'
-                    }`}
+                    className="text-[min(4.2vw,24px)] leading-none pointer-events-none relative z-0"
+                    style={
+                      pieceColor === 'w'
+                        ? {
+                            color: '#ffffff',
+                            // Multi-layer dark outline so white pieces pop on light AND dark squares
+                            textShadow: `
+                              0 0 2px #000,
+                              1px 1px 0 #000,
+                             -1px 1px 0 #000,
+                              1px -1px 0 #000,
+                             -1px -1px 0 #000,
+                              0 2px 4px rgba(0,0,0,0.8)
+                            `,
+                          }
+                        : {
+                            color: '#1a1208',
+                            // White outline so dark pieces pop on dark squares
+                            textShadow: `
+                              0 0 2px #fff,
+                              1px 1px 0 #fff,
+                             -1px 1px 0 #fff,
+                              1px -1px 0 #fff,
+                             -1px -1px 0 #fff,
+                              0 2px 4px rgba(0,0,0,0.4)
+                            `,
+                          }
+                    }
                   >
                     {GLYPHS[p]}
                   </span>
