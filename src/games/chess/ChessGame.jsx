@@ -134,10 +134,11 @@ function PromotionModal({ color, onPick }) {
 
 // ─── The board ──────────────────────────────────────────────────
 function Board({ board, myColor, selected, legalTargets, lastMove, onSquareClick, myTurn, winner }) {
-  // White: rank 8 (row 0) at top, rank 1 (row 7) at bottom — own pieces at bottom.
-  // Black: rank 1 (row 7) at top, rank 8 (row 0) at bottom — own pieces at bottom.
-  const rows = myColor === 'b' ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
-  const cols = myColor === 'b' ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+  // YOUR pieces always appear at the BOTTOM regardless of color.
+  // White → rows rendered 0..7 top-to-bottom: row0=rank8(opponent) at top, row7=rank1(yours) at bottom.
+  // Black → rows rendered 7..0 top-to-bottom: row7=rank1(opponent) at top, row0=rank8(yours) at bottom.
+  const rows = myColor === 'w' ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
+  const cols = myColor === 'w' ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
 
   const legalSet = new Set(legalTargets.map(([r,c]) => `${r},${c}`));
 
