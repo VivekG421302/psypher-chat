@@ -48,3 +48,45 @@ export function forgetRoom(roomId) {
 export function getRememberedRoom(roomId) {
   return loadRooms()[roomId] || null;
 }
+
+// ─── Device identity ─────────────────────────────────────────────
+// A stable UUID tied to this browser/device. Never changes.
+const DEVICE_KEY = 'psypher.deviceId';
+
+export function getDeviceId() {
+  let id = localStorage.getItem(DEVICE_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(DEVICE_KEY, id);
+  }
+  return id;
+}
+
+// ─── Named room history ──────────────────────────────────────────
+// Stores { roomId -> { userId, name, joinedAt, lastActive, label } }
+// "label" is a human nickname for the room (defaults to the other person's name
+// if we learn it, or the roomId itself).
+
+export function updateRoomLabel(roomId, label) {
+  const rooms = loadRooms();
+  if (rooms[roomId]) {
+    rooms[roomId].label = label;
+    rooms[roomId].lastActive = Date.now();
+    localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
+  }
+}
+
+export function touchRoom(roomId) {
+  const rooms = loadRooms();
+  if (rooms[roomId]) {
+    rooms[roomId].lastActive = Date.now();
+    localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
+  }
+}
+
+export function listPastRooms() {
+  const rooms = loadRooms();
+  return Object.entries(rooms)
+    .map(([roomId, data]) => ({ roomId, ...data }))
+    .sort((a, b) => (b.lastActive || b.joinedAt || 0) - (a.lastActive || a.joinedAt || 0));
+}
