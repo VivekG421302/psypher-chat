@@ -34,9 +34,10 @@ function RulesModal({ onClose }) {
       <div className="overflow-y-auto max-h-[65vh] p-4 space-y-3 text-[11.5px] text-mist-400 leading-relaxed">
         <RS t="🎯 Objective">First to cross all 10 levels wins.</RS>
         <RS t="🪟 The Bridge">Each level has 4 panels. Exactly 1 is safe. The other 3 shatter.</RS>
-        <RS t="✅ Safe step">Panel glows green. You advance and immediately pick the next level.</RS>
-        <RS t="💥 Fall">Panel breaks. You reset to start. Opponent's turn begins.</RS>
-        <RS t="🧠 Memory">All revealed panels stay visible. Use your opponent's discoveries!</RS>
+        <RS t="✅ Safe step">Panel flashes green briefly — remember which one it was! You advance to the next level immediately.</RS>
+        <RS t="💥 Fall">Panel flashes red. You reset to start. Opponent's turn begins. You must re-walk the entire path from scratch.</RS>
+        <RS t="🧠 Memory is everything">Panels reset to unknown after every step. No permanent marks. You must memorise the correct panel at each level yourself.</RS>
+        <RS t="♻️ Reusing known paths">If you already crossed a level safely before falling, you know the correct panel — step on it confidently to catch up fast.</RS>
         <RS t="⌨️ Controls">Tap a panel or press 1 / 2 / 3 / 4 on your keyboard.</RS>
       </div>
     </Modal>
@@ -128,33 +129,52 @@ function FallFlash({ show }) {
 
 /* ── Panel ──────────────────────────────────────────────────────── */
 function Panel({ status, panelNum, active, onClick }) {
-  const base = 'flex-1 flex items-center justify-center rounded-lg border transition-all select-none';
+  const base = 'flex-1 flex items-center justify-center rounded-lg border transition-all select-none relative overflow-hidden';
 
   if (status === 'safe') return (
-    <div className={`${base} border-emerald-500/60 bg-emerald-950/50`}
-      style={{ height: 34, boxShadow: '0 0 8px rgba(52,211,153,0.2)' }}>
+    <motion.div
+      initial={{ scale: 1, backgroundColor: 'rgba(6,78,59,0.3)' }}
+      animate={{ scale: [1, 1.06, 1], backgroundColor: ['rgba(6,78,59,0.3)', 'rgba(16,185,129,0.35)', 'rgba(6,78,59,0.3)'] }}
+      transition={{ duration: 0.55, ease: 'easeOut' }}
+      className={`${base} border-emerald-500/70`}
+      style={{ height: 34, boxShadow: '0 0 12px rgba(52,211,153,0.35)' }}
+    >
       <span className="text-base">✅</span>
-    </div>
+      {/* Ripple */}
+      <motion.div
+        initial={{ scale: 0, opacity: 0.6 }}
+        animate={{ scale: 3, opacity: 0 }}
+        transition={{ duration: 0.5 }}
+        className="absolute inset-0 rounded-lg bg-emerald-400/20 pointer-events-none"
+      />
+    </motion.div>
   );
+
   if (status === 'broken') return (
-    <div className={`${base} border-red-900/40 bg-red-950/30 opacity-40`} style={{ height: 34 }}>
-      <span className="text-sm">💔</span>
-    </div>
+    <motion.div
+      initial={{ x: 0 }}
+      animate={{ x: [-4, 4, -3, 3, 0] }}
+      transition={{ duration: 0.35 }}
+      className={`${base} border-red-800/50 bg-red-950/40`}
+      style={{ height: 34 }}
+    >
+      <span className="text-sm">💥</span>
+    </motion.div>
   );
 
   // unknown
   return (
     <motion.button
-      whileTap={active ? { scale: 0.93 } : {}}
+      whileTap={active ? { scale: 0.91 } : {}}
       onClick={active ? onClick : undefined}
       className={`${base} ${
         active
-          ? 'border-cyan-600/70 bg-cyan-950/40 hover:bg-cyan-900/40 hover:border-cyan-500 cursor-pointer'
-          : 'border-ink-700/40 bg-ink-800/20 cursor-default'
+          ? 'border-cyan-600/70 bg-cyan-950/40 hover:bg-cyan-900/40 hover:border-cyan-500/80 cursor-pointer'
+          : 'border-ink-700/30 bg-ink-800/10 cursor-default'
       }`}
       style={{ height: 34 }}
     >
-      <span className={`font-display text-sm font-bold ${active ? 'text-cyan-400' : 'text-mist-700'}`}>
+      <span className={`font-display text-sm font-bold tracking-wider ${active ? 'text-cyan-400' : 'text-mist-800'}`}>
         {panelNum}
       </span>
     </motion.button>
