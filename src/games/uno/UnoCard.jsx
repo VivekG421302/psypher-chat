@@ -6,7 +6,7 @@ const COLOR_MAP = {
   wild: { bg: 'linear-gradient(135deg,#D6373F,#E8B93D,#2E9E63,#3576E0)', text: '#fff' },
 };
 
-const LABELS = { skip: 'Ø', reverse: '⇄', '+2': '+2', wild: '★', 'wild+4': '+4' };
+const LABELS = { skip: '🚫', reverse: '⇄', '+2': '+2', wild: '★', 'wild+4': '+4' };
 
 export default function UnoCard({ card, onClick, disabled, faceDown, size = 'md', selected, highlighted }) {
   if (faceDown) {

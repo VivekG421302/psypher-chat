@@ -13,8 +13,14 @@ const COLOR_SWATCH = { R: '#D6373F', Y: '#E8B93D', G: '#2E9E63', B: '#3576E0' };
 const COLOR_NAMES  = { R: 'Red', Y: 'Yellow', G: 'Green', B: 'Blue' };
 
 /* ─── Playability ────────────────────────────────────────────────── */
-function isPlayable(card, discardTop, activeColor, pendingDraw = 0) {
-  if (pendingDraw > 0) return card.value === '+2' || card.value === 'wild+4';
+function isPlayable(card, discardTop, activeColor, pendingDraw = 0, pendingDrawUnit = 0) {
+  if (pendingDraw > 0) {
+    // A +2 can only stack on another +2 (same amount); +4 can stack on
+    // either a +2 (greater) or a +4 (same) — it can never "go down".
+    if (card.value === '+2') return pendingDrawUnit <= 2;
+    if (card.value === 'wild+4') return true;
+    return false;
+  }
   if (card.color === 'wild') return true;
   if (card.color === activeColor) return true;
   if (discardTop && card.value === discardTop.value) return true;
@@ -36,7 +42,7 @@ function RulesModal({ onClose }) {
           <RS title="▶️ On your turn">Play a card matching the top card's <b>color</b> or <b>value</b>. Can't play? Draw a card — if it's playable you may play it immediately.</RS>
           <RS title="⚡ Special Cards">
             <ul className="space-y-0.5 mt-1">
-              <li><b className="text-mist-200">Skip (Ø)</b> — Opponent loses their turn.</li>
+              <li><b className="text-mist-200">Skip (🚫)</b> — Opponent loses their turn.</li>
               <li><b className="text-mist-200">Reverse (⇄)</b> — In 2-player acts as Skip.</li>
               <li><b className="text-mist-200">+2</b> — Opponent draws 2 unless they counter with +2 or +4.</li>
               <li><b className="text-mist-200">Wild (★)</b> — You pick the next color.</li>
@@ -44,10 +50,11 @@ function RulesModal({ onClose }) {
             </ul>
           </RS>
           <RS title="🔁 Stacking (Counter)">
-            <p>When hit with a <b>+2</b>: counter with another <b>+2</b> or a <b>+4</b> to stack the penalty.</p>
-            <p className="mt-1">When hit with a <b>+4</b>: counter only with another <b>+4</b>.</p>
-            <p className="mt-1 text-mist-500">The stack grows until someone can't counter — they draw the full total and lose their turn.</p>
+            <p>When hit with a <b>+2</b>: counter with another <b>+2</b>, or with a <b>+4</b> (equal or greater only).</p>
+            <p className="mt-1">When hit with a <b>+4</b>: counter only with another <b>+4</b> — a +2 can never land on a +4.</p>
+            <p className="mt-1 text-mist-500">The stack grows until someone can't counter — they draw the full total. If a matching card is still in hand after drawing, they get a bonus play before the turn passes.</p>
           </RS>
+          <RS title="🎨 Bonus Play">After a plain <b>Wild</b> color-change, or after absorbing a stacked draw, you get one optional follow-up: play a matching card, or press <b>Pass</b>. No draw is forced.</RS>
           <RS title="📣 UNO">Press <b>Call UNO!</b> when you drop to 1 card before your opponent acts — or get penalised 2 cards.</RS>
           <RS title="🏆 Winning">Play your last card — even a +4. Opponent still draws for score tallying.</RS>
         </div>
@@ -175,7 +182,7 @@ function SurrenderModal({ onConfirm, onCancel }) {
 
 /* ─── Main ───────────────────────────────────────────────────────── */
 export default function UnoGame({ roomId, connected, onClose, chat }) {
-  const { state, waiting, error, playCard, drawCard, callUno, catchUno, restart } = useUno(roomId, connected);
+  const { state, waiting, error, playCard, drawCard, callUno, catchUno, passTurn, restart } = useUno(roomId, connected);
 
   const [pendingWild, setPendingWild]   = useState(null);
   const [colorBanner, setColorBanner]   = useState(null);
@@ -256,9 +263,11 @@ export default function UnoGame({ roomId, connected, onClose, chat }) {
   const myHasUno  = state.myHand.length === 1;
   const iCalledUno = state.unoCalled.includes(0) || state.unoCalled.includes(state.playerIndex);
   const pendingDraw = state.pendingDraw ?? 0;
+  const pendingDrawUnit = state.pendingDrawUnit ?? 0;
+  const bonusChance = !!state.bonusChance;
 
   const playableSet = hintsOn && state.myTurn && !state.winner
-    ? new Set(state.myHand.map((c, i) => isPlayable(c, state.discardTop, state.activeColor, pendingDraw) ? i : -1).filter(i => i !== -1))
+    ? new Set(state.myHand.map((c, i) => isPlayable(c, state.discardTop, state.activeColor, pendingDraw, pendingDrawUnit) ? i : -1).filter(i => i !== -1))
     : new Set();
 
   const showCards = !cardsHidden || isPeeking;
@@ -396,7 +405,7 @@ export default function UnoGame({ roomId, connected, onClose, chat }) {
           <p className={`text-[11px] font-display tracking-widest px-3 py-0.5 rounded-full ${
             state.myTurn ? 'text-cipher-500 bg-cipher-700/10' : 'text-danger bg-danger/10'
           }`}>
-            {state.myTurn ? 'YOUR TURN' : "OPPONENT'S TURN"}
+            {state.myTurn ? (bonusChance ? 'BONUS PLAY · OR PASS' : 'YOUR TURN') : "OPPONENT'S TURN"}
           </p>
 
           {/* Action buttons */}
@@ -409,6 +418,12 @@ export default function UnoGame({ roomId, connected, onClose, chat }) {
               }`}>
               {pendingDraw > 0 && state.myTurn ? `Draw ${pendingDraw}` : 'Draw'}
             </button>
+            {bonusChance && state.myTurn && (
+              <button onClick={passTurn}
+                className="text-[11px] rounded-lg border border-signal-500/50 px-2.5 py-1 text-signal-500 hover:bg-signal-700/10 cursor-pointer transition-colors font-medium">
+                Pass
+              </button>
+            )}
             <button onClick={callUno} disabled={!myHasUno || iCalledUno || !!state.winner}
               className="text-[11px] rounded-lg border border-signal-500/50 px-2.5 py-1 text-signal-500 hover:bg-signal-700/10 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer transition-colors">
               UNO!
