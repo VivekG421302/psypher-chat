@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ShieldCheck, ArrowRight, Loader2, KeySquare, Timer, Gamepad2,
-  Clock, Hash, Trash2, ChevronRight,
+  ShieldCheck, ArrowRight, KeySquare, Timer, Gamepad2,
+  Clock, Hash, Trash2, ChevronRight, RefreshCcw, AlertCircle,
 } from 'lucide-react';
 import DecryptText from '../components/DecryptText.jsx';
+import Spinner from '../components/Spinner.jsx';
 import { useProfile } from '../context/ProfileContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { api } from '../lib/api.js';
@@ -32,27 +33,124 @@ function timeAgo(ts) {
 }
 
 /* ── Past rooms panel ───────────────────────────────────────────── */
-function PastRooms({ onJoin }) {
+function PastRoomRow({ room, onRejoin, onRecreate, onRevoke }) {
+  const [loading, setLoading] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+
+  async function handleClick() {
+    if (loading) return;
+    setLoading(true);
+    setExpired(false);
+    const result = await onRejoin(room);
+    setLoading(false);
+    if (!result.ok && result.code === 'not_found') setExpired(true);
+  }
+
+  async function handleRecreate(e) {
+    e.stopPropagation();
+    setLoading(true);
+    const result = await onRecreate(room);
+    setLoading(false);
+    if (result.ok) setExpired(false);
+  }
+
+  function handleRevokeClick(e) {
+    e.stopPropagation();
+    if (confirmRevoke) {
+      onRevoke(room.roomId);
+    } else {
+      setConfirmRevoke(true);
+      setTimeout(() => setConfirmRevoke(false), 2500);
+    }
+  }
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: 24, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
+      transition={{ duration: 0.2 }}
+      className="rounded-xl border border-ink-700/60 bg-ink-800/40 overflow-hidden"
+    >
+      <div
+        onClick={handleClick}
+        className="group flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:border-signal-700/60 hover:bg-ink-700/40 transition-all"
+      >
+        <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${
+          expired ? 'bg-cipher-700/10 border-cipher-700/40' : 'bg-ink-700/60 border-ink-600/60'
+        }`}>
+          {expired ? <AlertCircle size={13} className="text-cipher-500" /> : <Hash size={13} className="text-mist-600" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-mist-200 font-medium truncate">
+            {room.label || room.roomId}
+          </p>
+          <p className="text-[10px] text-mist-600 flex items-center gap-1">
+            <span className="font-display tracking-wider">{room.roomId}</span>
+            <span>·</span>
+            <span>{expired ? 'expired' : timeAgo(room.lastActive || room.joinedAt)}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {loading
+            ? <Spinner size={14} />
+            : <ChevronRight size={13} className="text-mist-600 group-hover:text-mist-300 transition-colors" />
+          }
+          <button
+            onClick={handleRevokeClick}
+            title={confirmRevoke ? 'Click again to confirm' : 'Revoke from history'}
+            className={`opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all cursor-pointer ${
+              confirmRevoke
+                ? 'opacity-100 bg-danger/20 text-danger'
+                : 'hover:bg-danger/20 text-danger/60 hover:text-danger'
+            }`}
+          >
+            <Trash2 size={11} />
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {expired && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-2.5 flex items-center justify-between gap-2">
+              <p className="text-[10px] text-mist-600 leading-snug flex-1">
+                This code isn't active anymore. Recreate it and your friend can rejoin the same way.
+              </p>
+              <button
+                onClick={handleRecreate}
+                className="shrink-0 flex items-center gap-1 rounded-lg border border-cipher-500/50 text-cipher-500 text-[11px] font-medium px-2 py-1 hover:bg-cipher-700/15 transition-colors cursor-pointer"
+              >
+                <RefreshCcw size={11} /> Recreate
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function PastRooms({ onRejoin, onRecreate }) {
   const [rooms, setRooms] = useState([]);
-  const [loading, setLoading] = useState(null);
 
   useEffect(() => {
     setRooms(listPastRooms());
   }, []);
 
-  if (rooms.length === 0) return null;
-
-  function forget(e, roomId) {
-    e.stopPropagation();
+  function revoke(roomId) {
     forgetRoom(roomId);
     setRooms(listPastRooms());
   }
 
-  async function rejoin(room) {
-    setLoading(room.roomId);
-    await onJoin(room.roomId, room.userId, room.name);
-    setLoading(null);
-  }
+  if (rooms.length === 0) return null;
 
   return (
     <motion.div
@@ -65,40 +163,17 @@ function PastRooms({ onJoin }) {
         <Clock size={11} /> Past rooms
       </p>
       <div className="space-y-1.5">
-        {rooms.slice(0, 6).map(room => (
-          <div
-            key={room.roomId}
-            onClick={() => rejoin(room)}
-            className="group flex items-center gap-3 rounded-xl border border-ink-700/60 bg-ink-800/40 px-3 py-2.5 cursor-pointer hover:border-signal-700/60 hover:bg-ink-700/40 transition-all"
-          >
-            <div className="w-8 h-8 rounded-lg bg-ink-700/60 border border-ink-600/60 flex items-center justify-center shrink-0">
-              <Hash size={13} className="text-mist-600" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-mist-200 font-medium truncate">
-                {room.label || room.roomId}
-              </p>
-              <p className="text-[10px] text-mist-600 flex items-center gap-1">
-                <span className="font-display tracking-wider">{room.roomId}</span>
-                <span>·</span>
-                <span>{timeAgo(room.lastActive || room.joinedAt)}</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              {loading === room.roomId
-                ? <Loader2 size={13} className="text-mist-500 animate-spin" />
-                : <ChevronRight size={13} className="text-mist-600 group-hover:text-mist-300 transition-colors" />
-              }
-              <button
-                onClick={e => forget(e, room.roomId)}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-danger/20 text-danger/60 hover:text-danger transition-all cursor-pointer"
-                title="Remove from history"
-              >
-                <Trash2 size={11} />
-              </button>
-            </div>
-          </div>
-        ))}
+        <AnimatePresence initial={false}>
+          {rooms.slice(0, 6).map(room => (
+            <PastRoomRow
+              key={room.roomId}
+              room={room}
+              onRejoin={onRejoin}
+              onRecreate={onRecreate}
+              onRevoke={revoke}
+            />
+          ))}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
@@ -146,14 +221,41 @@ export default function Landing() {
     }
   }
 
-  async function handleRejoin(roomId, userId, name) {
-    const displayName = name || profile?.name || 'Guest';
+  // Returns { ok, code } instead of throwing so PastRoomRow can render an
+  // inline "recreate" affordance for the specific expired room, rather than
+  // just showing a generic toast and dead-ending.
+  async function handleRejoin(room) {
+    const displayName = room.name || profile?.name || 'Guest';
     try {
-      const res = await api.joinRoom(roomId, { name: displayName, userId });
-      touchRoom(roomId);
-      navigate(`/room/${roomId}`);
+      const res = await api.joinRoom(room.roomId, { name: displayName, userId: room.userId });
+      rememberRoom(room.roomId, { userId: res.userId, name: displayName, label: room.label });
+      touchRoom(room.roomId);
+      navigate(`/room/${room.roomId}`);
+      return { ok: true };
     } catch (err) {
-      notify(err.message || 'Could not rejoin that room — it may have expired.', 'error');
+      if (err.code === 'not_found') {
+        return { ok: false, code: 'not_found' };
+      }
+      notify(err.message || 'Could not rejoin that room.', 'error');
+      return { ok: false, code: err.code || 'error' };
+    }
+  }
+
+  async function handleRecreate(room) {
+    const displayName = room.name || profile?.name || 'Guest';
+    try {
+      const res = await api.createRoom(displayName, null, room.roomId);
+      rememberRoom(res.roomId, { userId: res.userId, name: displayName, label: room.label || `My room · ${res.roomId}` });
+      notify('Room revived with the same code — share it again.', 'success');
+      navigate(`/room/${res.roomId}`);
+      return { ok: true };
+    } catch (err) {
+      if (err.code === 'exists') {
+        notify('Someone just revived this room — rejoining it instead…', 'info');
+        return handleRejoin(room);
+      }
+      notify(err.message || 'Could not revive this room.', 'error');
+      return { ok: false, code: err.code || 'error' };
     }
   }
 
@@ -273,7 +375,7 @@ export default function Landing() {
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-signal-500 hover:bg-signal-400 disabled:opacity-50 text-ink-950 font-semibold text-sm py-2.5 transition-colors"
                 >
                   {loading
-                    ? <Loader2 size={15} className="animate-spin" />
+                    ? <Spinner size={15} light />
                     : <>{mode === 'create' ? 'Create room' : 'Join room'} <ArrowRight size={15} /></>
                   }
                 </button>
@@ -285,7 +387,7 @@ export default function Landing() {
             </div>
 
             {/* Past rooms */}
-            <PastRooms onJoin={handleRejoin} />
+            <PastRooms onRejoin={handleRejoin} onRecreate={handleRecreate} />
           </motion.div>
         </div>
       </div>

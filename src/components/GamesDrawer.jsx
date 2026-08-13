@@ -235,16 +235,45 @@ function GameReactTrigger({ onPick }) {
   );
 }
 
+function GameListSkeleton() {
+  return (
+    <div className="p-4 space-y-2.5">
+      {[0, 1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="rounded-xl border border-ink-700 bg-ink-800/60 p-4 flex items-center gap-3"
+        >
+          <div className="skeleton animate-shimmer w-10 h-10 rounded-lg shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="skeleton animate-shimmer h-3 w-24 rounded" style={{ animationDelay: `${i * 0.08}s` }} />
+            <div className="skeleton animate-shimmer h-2.5 w-40 rounded" style={{ animationDelay: `${i * 0.08}s` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function GamesDrawer({ open, onClose, roomId, identity, memberCount, chat }) {
   const [games, setGames] = useState([]);
+  const [gamesLoading, setGamesLoading] = useState(false);
+  const [gamesError, setGamesError] = useState(false);
   const [activeGameId, setActiveGameId] = useState(null);
   const callouts = useCallouts(chat.messages, open);
 
+  function loadGames() {
+    setGamesLoading(true);
+    setGamesError(false);
+    api.games()
+      .then((res) => setGames(res.games))
+      .catch(() => setGamesError(true))
+      .finally(() => setGamesLoading(false));
+  }
+
   useEffect(() => {
-    if (open && games.length === 0) {
-      api.games().then((res) => setGames(res.games)).catch(() => setGames([]));
-    }
-  }, [open, games.length]);
+    if (open && games.length === 0 && !gamesLoading) loadGames();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   return (
     <AnimatePresence>
@@ -269,17 +298,18 @@ export default function GamesDrawer({ open, onClose, roomId, identity, memberCou
                 {activeGameId && (
                   <button
                     onClick={() => setActiveGameId(null)}
-                    className="text-mist-500 hover:text-mist-100 transition-colors"
+                    className="text-mist-500 hover:text-mist-100 transition-colors cursor-pointer"
                     aria-label="Back to games list"
                   >
                     <ChevronLeft size={18} />
                   </button>
                 )}
-                <h2 className="font-display text-sm tracking-widest text-mist-100">
+                <h2 className="font-display text-sm tracking-widest text-mist-100 flex items-center gap-1.5">
+                  {activeGameId && <span className="text-base">{games.find((g) => g.id === activeGameId)?.emoji}</span>}
                   {activeGameId ? games.find((g) => g.id === activeGameId)?.name : 'MINIGAMES'}
                 </h2>
               </div>
-              <button onClick={onClose} className="text-mist-500 hover:text-mist-100 transition-colors" aria-label="Close">
+              <button onClick={onClose} className="text-mist-500 hover:text-mist-100 transition-colors cursor-pointer" aria-label="Close">
                 <X size={18} />
               </button>
             </div>
@@ -288,33 +318,69 @@ export default function GamesDrawer({ open, onClose, roomId, identity, memberCou
               <CalloutStack callouts={callouts} />
 
               {!activeGameId && (
-                <div className="p-4 space-y-2.5">
+                <>
                   {memberCount < 2 && (
-                    <p className="text-xs text-signal-500 bg-signal-700/10 border border-signal-700/30 rounded-lg px-3 py-2 mb-2">
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mx-4 mt-4 flex items-center gap-2 text-xs text-signal-500 bg-signal-700/10 border border-signal-700/30 rounded-lg px-3 py-2.5"
+                    >
+                      <span className="flex gap-0.5 shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-signal-500 animate-pulse-soft" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-signal-500 animate-pulse-soft [animation-delay:0.15s]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-signal-500 animate-pulse-soft [animation-delay:0.3s]" />
+                      </span>
                       Waiting for a second person to join — games need two players.
-                    </p>
+                    </motion.div>
                   )}
-                  {games.map((g) => {
-                    const available = !!GAME_COMPONENTS[g.id];
-                    return (
-                      <button
-                        key={g.id}
-                        disabled={!available}
-                        onClick={() => setActiveGameId(g.id)}
-                        className="w-full text-left rounded-xl border border-ink-700 bg-ink-800/60 hover:border-cipher-500/50 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer disabled:hover:border-ink-700 transition-colors p-4 flex items-center gap-3"
-                      >
-                        <span className="text-2xl">{g.emoji}</span>
-                        <div>
-                          <p className="text-sm font-medium text-mist-100">{g.name}</p>
-                          <p className="text-xs text-mist-500">{g.tagline}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {games.length === 0 && (
-                    <p className="text-sm text-mist-500 px-1">Loading games…</p>
+
+                  {gamesLoading && <GameListSkeleton />}
+
+                  {!gamesLoading && gamesError && (
+                    <div className="p-4">
+                      <div className="rounded-xl border border-danger/30 bg-danger/10 p-4 text-center">
+                        <p className="text-sm text-danger mb-2">Couldn't load the games list.</p>
+                        <button
+                          onClick={loadGames}
+                          className="text-xs rounded-lg border border-danger/40 text-danger px-3 py-1.5 hover:bg-danger/10 transition-colors cursor-pointer"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    </div>
                   )}
-                </div>
+
+                  {!gamesLoading && !gamesError && (
+                    <div className="p-4 space-y-2.5">
+                      {games.map((g, i) => {
+                        const available = !!GAME_COMPONENTS[g.id];
+                        return (
+                          <motion.button
+                            key={g.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.04, duration: 0.2 }}
+                            disabled={!available}
+                            onClick={() => setActiveGameId(g.id)}
+                            className="group w-full text-left rounded-xl border border-ink-700 bg-ink-800/60 hover:border-cipher-500/50 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer disabled:hover:border-ink-700 transition-colors p-4 flex items-center gap-3"
+                          >
+                            <span className="text-2xl transition-transform group-hover:scale-110 group-hover:-rotate-6">{g.emoji}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-mist-100 flex items-center gap-1.5">
+                                {g.name}
+                                {!available && <span className="text-[9px] uppercase tracking-wider text-mist-700 border border-ink-600 rounded-full px-1.5 py-0.5">Soon</span>}
+                              </p>
+                              <p className="text-xs text-mist-500 truncate">{g.tagline}</p>
+                            </div>
+                            {available && (
+                              <ChevronLeft size={14} className="rotate-180 text-mist-700 group-hover:text-cipher-500 shrink-0 transition-colors" />
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
 
               {activeGameId &&

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { Send, Smile, X, Check } from 'lucide-react';
-
-const QUICK_EMOJI = ['😀', '😂', '😍', '😢', '😮', '😡', '👍', '👎', '🙏', '🎉', '🔥', '💀', '❤️', '🤝', '👀', '✨'];
+import EmojiPicker from './EmojiPicker.jsx';
 
 export default function MessageInput({ onSend, onTyping, disabled, editingMessage, onSubmitEdit, onCancelEdit }) {
   const [value, setValue] = useState('');
@@ -9,8 +9,21 @@ export default function MessageInput({ onSend, onTyping, disabled, editingMessag
   const typingActive = useRef(false);
   const typingStopTimer = useRef(null);
   const textareaRef = useRef(null);
+  const pickerWrapRef = useRef(null);
 
   const isEditing = !!editingMessage;
+
+  // Close the emoji picker on any click outside its wrapper.
+  useEffect(() => {
+    if (!pickerOpen) return undefined;
+    function onDocClick(e) {
+      if (pickerWrapRef.current && !pickerWrapRef.current.contains(e.target)) {
+        setPickerOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [pickerOpen]);
 
   useEffect(() => {
     if (isEditing) {
@@ -77,23 +90,17 @@ export default function MessageInput({ onSend, onTyping, disabled, editingMessag
         </div>
       )}
 
-      {pickerOpen && (
-        <div className="absolute bottom-full mb-2 left-3 right-3 sm:right-auto sm:w-72 rounded-xl border border-ink-600 bg-ink-800 p-2.5 grid grid-cols-8 gap-1 shadow-lg">
-          {QUICK_EMOJI.map((em) => (
-            <button
-              key={em}
-              type="button"
-              onClick={() => {
-                setValue((v) => v + em);
-                setPickerOpen(false);
-              }}
-              className="text-lg rounded-lg py-1 hover:bg-ink-700 transition-colors enabled:cursor-pointer"
-            >
-              {em}
-            </button>
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {pickerOpen && (
+          <EmojiPicker
+            className="absolute bottom-full mb-2 left-3 z-30"
+            onPick={(em) => {
+              setValue((v) => v + em);
+              textareaRef.current?.focus();
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       <div className="flex items-end gap-2">
         <button

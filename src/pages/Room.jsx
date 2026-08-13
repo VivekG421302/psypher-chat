@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, ShieldOff, Users2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ShieldOff, Users2, KeyRound, RefreshCcw } from 'lucide-react';
 import { useProfile } from '../context/ProfileContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useChatRoom } from '../lib/useChatRoom.js';
 import { useViewportHeight } from '../lib/useViewportHeight.js';
-import { getRememberedRoom } from '../lib/storage.js';
+import { getRememberedRoom, rememberRoom } from '../lib/storage.js';
 import { api } from '../lib/api.js';
 import { colorForName } from '../lib/crypto.js';
 import RoomHeader from '../components/RoomHeader.jsx';
@@ -14,17 +15,26 @@ import MessageInput from '../components/MessageInput.jsx';
 import SelectionBar from '../components/SelectionBar.jsx';
 import GamesDrawer from '../components/GamesDrawer.jsx';
 import DecryptText from '../components/DecryptText.jsx';
+import Spinner from '../components/Spinner.jsx';
 
-function StatusScreen({ icon: Icon, title, body, actionLabel, onAction }) {
+function StatusScreen({ icon: Icon, title, body, actionLabel, onAction, children }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 gap-4">
-      <Icon size={30} className="text-signal-500" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="w-14 h-14 rounded-2xl bg-signal-700/10 border border-signal-700/30 flex items-center justify-center"
+      >
+        <Icon size={26} className="text-signal-500" />
+      </motion.div>
       <h1 className="font-display text-xl text-mist-100">{title}</h1>
       <p className="text-mist-500 max-w-sm text-sm">{body}</p>
+      {children}
       {actionLabel && (
         <button
           onClick={onAction}
-          className="mt-2 rounded-lg bg-signal-500 text-ink-950 text-sm font-semibold px-4 py-2 hover:bg-signal-300 transition-colors"
+          className="mt-1 rounded-lg bg-signal-500 text-ink-950 text-sm font-semibold px-4 py-2 hover:bg-signal-300 transition-colors cursor-pointer"
         >
           {actionLabel}
         </button>
@@ -36,28 +46,70 @@ function StatusScreen({ icon: Icon, title, body, actionLabel, onAction }) {
 function JoinGate({ roomId, onJoined }) {
   const { profile, setName } = useProfile();
   const { notify } = useToast();
+  const navigate = useNavigate();
   const [nameInput, setNameInput] = useState(profile?.name || '');
   const [loading, setLoading] = useState(false);
+  const [reviving, setReviving] = useState(false);
+  const [expired, setExpired] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
     const trimmed = nameInput.trim();
     if (!trimmed) return notify('Enter a display name.', 'error');
     setLoading(true);
+    setExpired(false);
     try {
       setName(trimmed);
       const res = await api.joinRoom(roomId, { name: trimmed });
+      rememberRoom(roomId, { userId: res.userId, name: trimmed, label: roomId });
       onJoined({ userId: res.userId, name: trimmed, color: colorForName(trimmed) });
     } catch (err) {
-      notify(err.message || 'Could not join this room.', 'error');
+      if (err.code === 'not_found') {
+        setExpired(true);
+        notify('This room code has expired.', 'error');
+      } else {
+        notify(err.message || 'Could not join this room.', 'error');
+      }
     } finally {
       setLoading(false);
     }
   }
 
+  async function recreate() {
+    const trimmed = nameInput.trim();
+    if (!trimmed) return notify('Enter a display name first.', 'error');
+    setReviving(true);
+    try {
+      setName(trimmed);
+      const res = await api.createRoom(trimmed, null, roomId);
+      rememberRoom(res.roomId, { userId: res.userId, name: trimmed, label: `My room · ${res.roomId}` });
+      notify('Room revived with the same code — share it with your friend again.', 'success');
+      onJoined({ userId: res.userId, name: trimmed, color: colorForName(trimmed) });
+    } catch (err) {
+      if (err.code === 'exists') {
+        notify('Someone just revived this room — joining it instead…', 'info');
+        setExpired(false);
+        try {
+          const res = await api.joinRoom(roomId, { name: trimmed });
+          rememberRoom(roomId, { userId: res.userId, name: trimmed, label: roomId });
+          onJoined({ userId: res.userId, name: trimmed, color: colorForName(trimmed) });
+        } catch (err2) {
+          notify(err2.message || 'Could not join this room.', 'error');
+        }
+      } else {
+        notify(err.message || 'Could not revive this room.', 'error');
+      }
+    } finally {
+      setReviving(false);
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
-      <form
+      <motion.form
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
         onSubmit={submit}
         className="w-full max-w-sm rounded-2xl border border-ink-700 bg-ink-800/80 p-6 shadow-glow"
       >
@@ -75,12 +127,51 @@ function JoinGate({ roomId, onJoined }) {
         />
         <button
           type="submit"
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 rounded-lg bg-signal-500 hover:bg-signal-300 disabled:opacity-60 text-ink-950 font-semibold text-sm py-2.5 transition-colors"
+          disabled={loading || reviving}
+          className="w-full flex items-center justify-center gap-2 rounded-lg bg-signal-500 hover:bg-signal-300 disabled:opacity-60 text-ink-950 font-semibold text-sm py-2.5 transition-colors cursor-pointer"
         >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : 'Enter room'}
+          {loading ? <Spinner size={16} light /> : 'Enter room'}
         </button>
-      </form>
+
+        <AnimatePresence>
+          {expired && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-4 rounded-xl border border-cipher-700/40 bg-cipher-700/10 p-3.5">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-cipher-500 mb-1">
+                  <KeyRound size={13} /> This code isn't active anymore
+                </p>
+                <p className="text-[11px] text-mist-500 leading-relaxed mb-3">
+                  Rooms vanish after 15 minutes of silence. You can start a brand
+                  new room using this exact code — anyone with the same code
+                  saved will land right back here.
+                </p>
+                <button
+                  type="button"
+                  onClick={recreate}
+                  disabled={reviving}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg border border-cipher-500/50 text-cipher-500 text-xs font-medium py-2 hover:bg-cipher-700/15 disabled:opacity-60 transition-colors cursor-pointer"
+                >
+                  {reviving ? <Spinner size={14} /> : <RefreshCcw size={13} />}
+                  Recreate room {roomId}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="w-full text-center text-[11px] text-mist-600 hover:text-mist-300 mt-4 transition-colors cursor-pointer"
+        >
+          Back to start
+        </button>
+      </motion.form>
     </div>
   );
 }
@@ -174,9 +265,31 @@ export default function Room() {
         icon={ShieldOff}
         title="Room not found"
         body="This room has expired or never existed. Room codes only live for as long as the room stays active."
-        actionLabel="Back to start"
-        onAction={() => navigate('/')}
-      />
+      >
+        <div className="flex flex-col sm:flex-row items-center gap-2 mt-1">
+          <button
+            onClick={async () => {
+              try {
+                const res = await api.createRoom(identity.name, null, roomId);
+                rememberRoom(res.roomId, { userId: res.userId, name: identity.name, label: `My room · ${res.roomId}` });
+                notify('Room revived with the same code.', 'success');
+                setIdentity({ userId: res.userId, name: identity.name, color: identity.color });
+              } catch (err) {
+                notify(err.message || 'Could not revive this room.', 'error');
+              }
+            }}
+            className="rounded-lg border border-cipher-500/50 text-cipher-500 text-sm font-medium px-4 py-2 hover:bg-cipher-700/15 transition-colors cursor-pointer"
+          >
+            Recreate room {roomId}
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="rounded-lg bg-signal-500 text-ink-950 text-sm font-semibold px-4 py-2 hover:bg-signal-300 transition-colors cursor-pointer"
+          >
+            Back to start
+          </button>
+        </div>
+      </StatusScreen>
     );
   }
 
@@ -194,11 +307,11 @@ export default function Room() {
 
   if (chat.status === 'connecting') {
     return (
-      <StatusScreen
-        icon={Loader2}
-        title="Connecting…"
-        body="Deriving your encryption key from the room code."
-      />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
+        <Spinner size={28} />
+        <p className="font-display text-xs tracking-widest text-mist-500">CONNECTING…</p>
+        <p className="text-mist-600 text-xs">Deriving your encryption key from the room code.</p>
+      </div>
     );
   }
 

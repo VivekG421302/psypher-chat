@@ -7,7 +7,10 @@ async function request(path, options = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`);
+    const err = new Error(data.error || `Request failed (${res.status})`);
+    err.status = res.status;
+    err.code = data.code || null;
+    throw err;
   }
   return data;
 }
@@ -15,8 +18,10 @@ async function request(path, options = {}) {
 export const api = {
   health: () => request('/api/health'),
   games: () => request('/api/games'),
-  createRoom: (name, color) =>
-    request('/api/rooms', { method: 'POST', body: JSON.stringify({ name, color }) }),
+  // roomId is optional — pass it to "revive" a specific code (e.g. from
+  // past-rooms history) instead of getting a fresh random one.
+  createRoom: (name, color, roomId) =>
+    request('/api/rooms', { method: 'POST', body: JSON.stringify({ name, color, roomId }) }),
   getRoom: (roomId) => request(`/api/rooms/${roomId}`),
   joinRoom: (roomId, { name, color, userId }) =>
     request(`/api/rooms/${roomId}/join`, {
