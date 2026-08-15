@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ShieldOff, Users2, KeyRound, RefreshCcw, MessageSquare, Gamepad2 } from 'lucide-react';
@@ -6,6 +6,7 @@ import { useProfile } from '../context/ProfileContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useChatRoom } from '../lib/useChatRoom.js';
 import { useViewportHeight } from '../lib/useViewportHeight.js';
+import { useFaviconBadge } from '../lib/useFaviconBadge.js';
 import { getRememberedRoom, rememberRoom } from '../lib/storage.js';
 import { api } from '../lib/api.js';
 import { colorForName } from '../lib/crypto.js';
@@ -187,6 +188,13 @@ export default function Room() {
   const [editingMessage, setEditingMessage] = useState(null);
   // Mobile toggle between chat and game panel (when both are open)
   const [mobileView, setMobileView] = useState('chat'); // 'chat' | 'game'
+  // Tracked at Room level (not inside GamesDrawer) so the notification works
+  // even when the games panel is closed / not mounted at all.
+  const [opponentGame, setOpponentGame] = useState(null); // { gameId } | null
+  const [opponentGameUnseen, setOpponentGameUnseen] = useState(false);
+  const notifiedGameRef = useRef(null);
+  const setFaviconUnread = useFaviconBadge();
+  const lastMessageIdRef = useRef(null);
 
   useEffect(() => {
     const remembered = getRememberedRoom(roomId);
@@ -207,6 +215,53 @@ export default function Room() {
 
   const chat = useChatRoom(roomId, identity);
   const viewportHeight = useViewportHeight();
+
+  // ── Green-dot game invite: works regardless of whether the games panel
+  // is open, since (unlike before) this listener lives at Room level and
+  // is always mounted for the lifetime of the room. ──
+  useEffect(() => {
+    const socket = chat.socket?.current;
+    if (!socket) return undefined;
+
+    function onGameStarted({ gameId, startedBy }) {
+      if (startedBy === identity.userId) return; // it was us
+      setOpponentGame({ gameId });
+      setOpponentGameUnseen(true);
+      if (notifiedGameRef.current !== gameId) {
+        notifiedGameRef.current = gameId;
+        const starter = chat.members.find((m) => m.userId === startedBy);
+        chat.notifyLocal(`${starter?.name || 'Your partner'} started a game — open Minigames to join!`);
+      }
+    }
+    function onGameEnded() {
+      setOpponentGame(null);
+      notifiedGameRef.current = null;
+    }
+
+    socket.on('game:started', onGameStarted);
+    socket.on('game:ended', onGameEnded);
+    return () => {
+      socket.off('game:started', onGameStarted);
+      socket.off('game:ended', onGameEnded);
+    };
+  }, [chat.socket, chat.members, chat.notifyLocal, identity.userId]);
+
+  // Opening the games panel counts as having "seen" the invite.
+  useEffect(() => {
+    if (gamesOpen) setOpponentGameUnseen(false);
+  }, [gamesOpen]);
+
+  // ── Favicon unread dot: badge the tab icon when a new message from the
+  // other person arrives while this tab is hidden or unfocused. ──
+  useEffect(() => {
+    if (!chat.messages.length) return;
+    const last = chat.messages[chat.messages.length - 1];
+    if (lastMessageIdRef.current === last.id) return;
+    lastMessageIdRef.current = last.id;
+    const isIncoming = last.kind === 'message' && !last.mine;
+    const tabHidden = document.visibilityState !== 'visible' || !document.hasFocus();
+    if (isIncoming && tabHidden) setFaviconUnread(true);
+  }, [chat.messages, setFaviconUnread]);
 
   const memberCount = useMemo(() => chat.members.length, [chat.members]);
   const selectMode = selectedIds.size > 0;
@@ -393,6 +448,7 @@ export default function Room() {
         mobileView={mobileView}
         setMobileView={setMobileView}
         gamesPanelOpen={gamesOpen}
+        opponentGameUnseen={opponentGameUnseen}
       />
 
       {/* Desktop: side-by-side. Mobile: toggled via mobileView state */}
@@ -426,6 +482,7 @@ export default function Room() {
               identity={identity}
               memberCount={memberCount}
               chat={chat}
+              opponentActiveGame={opponentGame?.gameId || null}
               inline
             />
           </div>

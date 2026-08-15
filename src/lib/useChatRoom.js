@@ -200,6 +200,14 @@ export function useChatRoom(roomId, identity) {
     forgetRoom(roomId);
   }, [roomId]);
 
+  // Push a client-only "system" line into the message list — never sent to
+  // the server or the other member (they get their own local notice from
+  // their own socket events). Used for things like game-start invitations
+  // that should show up even if the games panel is closed.
+  const notifyLocal = useCallback((text) => {
+    setMessages((prev) => [...prev, { id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, kind: 'system', text, ts: Date.now() }]);
+  }, []);
+
   return {
     status,
     connected,
@@ -214,6 +222,7 @@ export function useChatRoom(roomId, identity) {
     sendGameReaction,
     setTyping,
     leaveRoom,
+    notifyLocal,
     socket: socketRef,
   };
 }

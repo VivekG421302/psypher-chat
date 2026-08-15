@@ -13,6 +13,7 @@ export default function RoomHeader({
   gamesOpen,
   mobileView,
   setMobileView,
+  opponentGameUnseen = false,
 }) {
   const [copied, setCopied] = useState(false);
   const [pinned, setPinned] = useState(false);
@@ -168,11 +169,14 @@ export default function RoomHeader({
 
           {/* Games toggle */}
           <div className="relative">
-            {bothOnline && !gamesOpen && (
+            {!gamesOpen && (opponentGameUnseen || bothOnline) && (
               <motion.span
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="pointer-events-none absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cipher-500 ring-2 ring-ink-900 animate-pulse-soft"
+                title={opponentGameUnseen ? 'Your partner started a game — tap to join' : undefined}
+                className={`pointer-events-none absolute -top-1 -right-1 rounded-full bg-cipher-500 ring-2 ring-ink-900 animate-pulse-soft ${
+                  opponentGameUnseen ? 'w-3 h-3' : 'w-2.5 h-2.5'
+                }`}
               />
             )}
             <button

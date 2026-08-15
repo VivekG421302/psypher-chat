@@ -271,29 +271,15 @@ function GameListSkeleton() {
  *                       and sits beside the chat on desktop; Room handles
  *                       toggling between chat/game on mobile.
  */
-export default function GamesDrawer({ open, onClose, roomId, identity, memberCount, chat, inline = false }) {
+export default function GamesDrawer({
+  open, onClose, roomId, identity, memberCount, chat, inline = false,
+  opponentActiveGame = null, // { gameId } tracked at Room level — see Room.jsx
+}) {
   const [games, setGames] = useState([]);
   const [gamesLoading, setGamesLoading] = useState(false);
   const [gamesError, setGamesError] = useState(false);
   const [activeGameId, setActiveGameId] = useState(null);
   const callouts = useCallouts(chat.messages, open);
-
-  // Track which game was started by the OTHER player (green dot indicator)
-  const [opponentActiveGame, setOpponentActiveGame] = useState(null);
-
-  useEffect(() => {
-    if (!chat.socket?.current) return;
-    function onGameStarted({ gameId, startedBy }) {
-      if (startedBy !== identity.userId) setOpponentActiveGame(gameId);
-    }
-    function onGameEnded() { setOpponentActiveGame(null); }
-    chat.socket.current.on('game:started', onGameStarted);
-    chat.socket.current.on('game:ended', onGameEnded);
-    return () => {
-      chat.socket.current.off('game:started', onGameStarted);
-      chat.socket.current.off('game:ended', onGameEnded);
-    };
-  }, [chat.socket, identity.userId]);
 
   // Notify others when we start/leave a game
   useEffect(() => {
