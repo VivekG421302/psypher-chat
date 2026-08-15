@@ -38,7 +38,10 @@ export default function RoomHeader({
     const otherMember = members.find((m) => !m.mine);
     if (nameModalOpen) {
       setLabelInput(roomLabel || otherMember?.name || '');
-      setTimeout(() => labelInputRef.current?.focus(), 60);
+      // Focus AND select the pre-filled text so typing immediately replaces
+      // it — matches the "auto-filled with the other person's name, and
+      // that name is selected by default" requirement.
+      setTimeout(() => labelInputRef.current?.select(), 60);
     }
   }, [nameModalOpen, members, roomLabel]);
 

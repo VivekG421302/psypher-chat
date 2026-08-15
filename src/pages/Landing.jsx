@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck, ArrowRight, KeySquare, Timer, Gamepad2,
-  Clock, Hash, Trash2, ChevronRight, RefreshCcw, AlertCircle,
+  Clock, Hash, Trash2, ChevronRight, RefreshCcw, AlertCircle, Pin,
 } from 'lucide-react';
 import DecryptText from '../components/DecryptText.jsx';
 import Spinner from '../components/Spinner.jsx';
@@ -85,7 +85,7 @@ function PastRoomRow({ room, onRejoin, onRecreate, onRevoke }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs text-mist-200 font-medium truncate flex items-center gap-1">
-            {room.pinned && <span title="Pinned room" className="text-cipher-500 shrink-0">📌</span>}
+            {room.pinned && <Pin size={11} title="Pinned room" className="text-cipher-500 shrink-0" />}
             {room.label || room.roomId}
           </p>
           <p className="text-[10px] text-mist-600 flex items-center gap-1">
