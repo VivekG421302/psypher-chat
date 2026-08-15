@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ShieldOff, Users2, KeyRound, RefreshCcw } from 'lucide-react';
+import { ShieldOff, Users2, KeyRound, RefreshCcw, MessageSquare, Gamepad2 } from 'lucide-react';
 import { useProfile } from '../context/ProfileContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useChatRoom } from '../lib/useChatRoom.js';
@@ -185,6 +185,8 @@ export default function Room() {
   const [gamesOpen, setGamesOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [editingMessage, setEditingMessage] = useState(null);
+  // Mobile toggle between chat and game panel (when both are open)
+  const [mobileView, setMobileView] = useState('chat'); // 'chat' | 'game'
 
   useEffect(() => {
     const remembered = getRememberedRoom(roomId);
@@ -198,11 +200,21 @@ export default function Room() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
+  // When games close, reset mobile view to chat
+  useEffect(() => {
+    if (!gamesOpen) setMobileView('chat');
+  }, [gamesOpen]);
+
   const chat = useChatRoom(roomId, identity);
   const viewportHeight = useViewportHeight();
 
   const memberCount = useMemo(() => chat.members.length, [chat.members]);
   const selectMode = selectedIds.size > 0;
+
+  const selectableMessages = useMemo(
+    () => chat.messages.filter((m) => m.kind === 'message'),
+    [chat.messages]
+  );
 
   const enterSelectMode = useCallback((id) => {
     setEditingMessage(null);
@@ -219,6 +231,13 @@ export default function Room() {
   }, []);
 
   const cancelSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const selectAll = useCallback(() => {
+    const allIds = selectableMessages.map((m) => m.id);
+    setSelectedIds((prev) =>
+      prev.size === allIds.length ? new Set() : new Set(allIds)
+    );
+  }, [selectableMessages]);
 
   const copyText = useCallback(
     (text) => {
@@ -315,18 +334,9 @@ export default function Room() {
     );
   }
 
-  return (
-    <div
-      className="flex flex-col overflow-hidden"
-      style={{ height: viewportHeight ? `${viewportHeight}px` : '100dvh' }}
-    >
-      <RoomHeader
-        roomId={roomId}
-        members={chat.members}
-        onLeave={chat.leaveRoom}
-        onToggleGames={() => setGamesOpen((v) => !v)}
-        gamesOpen={gamesOpen}
-      />
+  // ── Chat panel ──
+  const ChatPanel = (
+    <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
       <MessageList
         messages={chat.messages}
         typingUser={chat.typingUser}
@@ -349,10 +359,12 @@ export default function Room() {
       {selectMode ? (
         <SelectionBar
           count={selectedIds.size}
+          totalSelectable={selectableMessages.length}
           allSelectedAreMine={allSelectedAreMine}
           onCancel={cancelSelection}
           onCopy={copySelected}
           onDelete={deleteSelected}
+          onSelectAll={selectAll}
         />
       ) : (
         <MessageInput
@@ -364,14 +376,61 @@ export default function Room() {
           onCancelEdit={() => setEditingMessage(null)}
         />
       )}
-      <GamesDrawer
-        open={gamesOpen}
-        onClose={() => setGamesOpen(false)}
+    </div>
+  );
+
+  return (
+    <div
+      className="flex flex-col overflow-hidden"
+      style={{ height: viewportHeight ? `${viewportHeight}px` : '100dvh' }}
+    >
+      <RoomHeader
         roomId={roomId}
-        identity={identity}
-        memberCount={memberCount}
-        chat={chat}
+        members={chat.members}
+        onLeave={chat.leaveRoom}
+        onToggleGames={() => setGamesOpen((v) => !v)}
+        gamesOpen={gamesOpen}
+        mobileView={mobileView}
+        setMobileView={setMobileView}
+        gamesPanelOpen={gamesOpen}
       />
+
+      {/* Desktop: side-by-side. Mobile: toggled via mobileView state */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Chat area — hidden on mobile when showing game */}
+        <div
+          className={`flex flex-col min-h-0 overflow-hidden transition-all duration-300 ${
+            gamesOpen
+              ? mobileView === 'game'
+                ? 'hidden lg:flex lg:flex-1'
+                : 'flex flex-1 lg:flex-1'
+              : 'flex flex-1'
+          }`}
+        >
+          {ChatPanel}
+        </div>
+
+        {/* Game panel — inline on desktop, full-width on mobile when selected */}
+        {gamesOpen && (
+          <div
+            className={`flex flex-col min-h-0 overflow-hidden border-l border-ink-700 transition-all duration-300 ${
+              mobileView === 'game'
+                ? 'flex flex-1 lg:w-[420px] lg:flex-none'
+                : 'hidden lg:flex lg:w-[420px] lg:flex-none'
+            }`}
+          >
+            <GamesDrawer
+              open={gamesOpen}
+              onClose={() => setGamesOpen(false)}
+              roomId={roomId}
+              identity={identity}
+              memberCount={memberCount}
+              chat={chat}
+              inline
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

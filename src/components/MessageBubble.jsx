@@ -9,6 +9,58 @@ function formatTime(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Render message text with basic markdown:
+ *   **bold**, _italic_, and numbered lists preserved across newlines.
+ */
+function RichText({ text }) {
+  // Handle image messages
+  if (text?.startsWith('[image]data:image')) {
+    return (
+      <img
+        src={text.slice('[image]'.length)}
+        alt="Shared image"
+        className="max-w-full rounded-lg max-h-56 object-contain"
+        loading="lazy"
+      />
+    );
+  }
+
+  if (!text) return null;
+
+  const lines = text.split('\n');
+  return (
+    <span className="whitespace-pre-wrap break-words">
+      {lines.map((line, li) => (
+        <span key={li}>
+          {li > 0 && <br />}
+          {renderInline(line)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function renderInline(text) {
+  // Bold: **...**  Italic: _..._
+  const parts = [];
+  const regex = /(\*\*(.+?)\*\*|_(.+?)_)/g;
+  let last = 0;
+  let m;
+  let key = 0;
+  while ((m = regex.exec(text)) !== null) {
+    if (m.index > last) parts.push(<span key={key++}>{text.slice(last, m.index)}</span>);
+    if (m[0].startsWith('**')) {
+      parts.push(<strong key={key++} className="font-bold">{m[2]}</strong>);
+    } else {
+      parts.push(<em key={key++} className="italic">{m[3]}</em>);
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(<span key={key++}>{text.slice(last)}</span>);
+  return parts.length ? parts : text;
+}
+
 export default function MessageBubble({
   message: m,
   myUserId,
@@ -50,6 +102,7 @@ export default function MessageBubble({
   }
 
   const reactionEntries = Object.entries(m.reactions || {}).filter(([, users]) => users.length > 0);
+  const isImage = m.text?.startsWith('[image]data:image');
 
   function handleClick() {
     if (longPress.didLongPress()) return;
@@ -62,7 +115,7 @@ export default function MessageBubble({
 
   function handleDoubleClick() {
     if (selectMode) return;
-    onReact(m.id, '❤️'); // server toggles off if you already reacted with this emoji
+    onReact(m.id, '❤️');
   }
 
   return (
@@ -77,7 +130,7 @@ export default function MessageBubble({
       {selectMode && (
         <button
           onClick={() => onToggleSelect(m.id)}
-          className={`shrink-0 w-5 h-5 rounded-full border flex items-center justify-center transition-colors enabled:cursor-pointer ${
+          className={`shrink-0 w-5 h-5 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${
             selected ? 'bg-signal-500 border-signal-500' : 'border-ink-500'
           }`}
           aria-label="Select message"
@@ -105,11 +158,11 @@ export default function MessageBubble({
             m.mine
               ? 'bg-signal-500 text-ink-950 rounded-br-md'
               : m.failed
-                ? 'bg-danger/10 border border-danger/30 text-danger rounded-bl-md'
-                : 'bg-ink-700 text-mist-100 rounded-bl-md'
+              ? 'bg-danger/10 border border-danger/30 text-danger rounded-bl-md'
+              : 'bg-ink-700 text-mist-100 rounded-bl-md'
           }`}
         >
-          {m.text}
+          <RichText text={m.text} />
         </div>
 
         <div className="flex items-center gap-1.5 mt-0.5 px-1">
@@ -123,7 +176,7 @@ export default function MessageBubble({
               <button
                 key={emoji}
                 onClick={() => onReact(m.id, emoji)}
-                className={`flex items-center gap-1 text-xs rounded-full px-2 py-0.5 border transition-colors enabled:cursor-pointer ${
+                className={`flex items-center gap-1 text-xs rounded-full px-2 py-0.5 border transition-colors cursor-pointer ${
                   users.includes(myUserId)
                     ? 'bg-signal-700/20 border-signal-500/50 text-signal-500'
                     : 'bg-ink-800 border-ink-600 text-mist-400 hover:border-mist-500'
@@ -136,7 +189,7 @@ export default function MessageBubble({
           </div>
         )}
 
-        {/* Action toolbar (desktop hover / mobile long-press) */}
+        {/* Action toolbar */}
         <AnimatePresence>
           {!selectMode && showActions && (
             <motion.div
@@ -150,32 +203,34 @@ export default function MessageBubble({
             >
               <button
                 onClick={() => setShowReactBar((v) => !v)}
-                className="p-1.5 rounded-full text-mist-400 hover:text-signal-500 hover:bg-ink-700 transition-colors enabled:cursor-pointer"
+                className="p-1.5 rounded-full text-mist-400 hover:text-signal-500 hover:bg-ink-700 transition-colors cursor-pointer"
                 aria-label="React"
               >
                 <Smile size={14} />
               </button>
-              <button
-                onClick={() => onCopy(m.text)}
-                className="p-1.5 rounded-full text-mist-400 hover:text-mist-100 hover:bg-ink-700 transition-colors enabled:cursor-pointer"
-                aria-label="Copy"
-              >
-                <Copy size={14} />
-              </button>
+              {!isImage && (
+                <button
+                  onClick={() => onCopy(m.text)}
+                  className="p-1.5 rounded-full text-mist-400 hover:text-mist-100 hover:bg-ink-700 transition-colors cursor-pointer"
+                  aria-label="Copy"
+                >
+                  <Copy size={14} />
+                </button>
+              )}
               <button
                 onClick={() => {
                   setShowActions(false);
                   onEnterSelectMode(m.id);
                 }}
-                className="p-1.5 rounded-full text-mist-400 hover:text-mist-100 hover:bg-ink-700 transition-colors enabled:cursor-pointer"
+                className="p-1.5 rounded-full text-mist-400 hover:text-mist-100 hover:bg-ink-700 transition-colors cursor-pointer"
                 aria-label="Select"
               >
                 <CheckSquare size={14} />
               </button>
-              {m.mine && !m.failed && (
+              {m.mine && !m.failed && !isImage && (
                 <button
                   onClick={() => onEdit(m)}
-                  className="p-1.5 rounded-full text-mist-400 hover:text-cipher-500 hover:bg-ink-700 transition-colors enabled:cursor-pointer"
+                  className="p-1.5 rounded-full text-mist-400 hover:text-cipher-500 hover:bg-ink-700 transition-colors cursor-pointer"
                   aria-label="Edit"
                 >
                   <Pencil size={14} />
@@ -192,7 +247,7 @@ export default function MessageBubble({
                       setTimeout(() => setConfirmDelete(false), 2500);
                     }
                   }}
-                  className={`p-1.5 rounded-full transition-colors enabled:cursor-pointer ${
+                  className={`p-1.5 rounded-full transition-colors cursor-pointer ${
                     confirmDelete ? 'text-danger bg-danger/10' : 'text-mist-400 hover:text-danger hover:bg-ink-700'
                   }`}
                   aria-label={confirmDelete ? 'Confirm delete' : 'Delete'}

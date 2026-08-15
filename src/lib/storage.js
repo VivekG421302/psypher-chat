@@ -88,5 +88,10 @@ export function listPastRooms() {
   const rooms = loadRooms();
   return Object.entries(rooms)
     .map(([roomId, data]) => ({ roomId, ...data }))
-    .sort((a, b) => (b.lastActive || b.joinedAt || 0) - (a.lastActive || a.joinedAt || 0));
+    .sort((a, b) => {
+      // Pinned rooms always float to top
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return (b.lastActive || b.joinedAt || 0) - (a.lastActive || a.joinedAt || 0);
+    });
 }

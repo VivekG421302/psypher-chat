@@ -84,7 +84,8 @@ function PastRoomRow({ room, onRejoin, onRecreate, onRevoke }) {
           {expired ? <AlertCircle size={13} className="text-cipher-500" /> : <Hash size={13} className="text-mist-600" />}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-mist-200 font-medium truncate">
+          <p className="text-xs text-mist-200 font-medium truncate flex items-center gap-1">
+            {room.pinned && <span title="Pinned room" className="text-cipher-500 shrink-0">📌</span>}
             {room.label || room.roomId}
           </p>
           <p className="text-[10px] text-mist-600 flex items-center gap-1">
