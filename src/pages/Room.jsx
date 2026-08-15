@@ -221,7 +221,7 @@ export default function Room() {
   // is always mounted for the lifetime of the room. ──
   useEffect(() => {
     const socket = chat.socket?.current;
-    if (!socket) return undefined;
+    if (!socket || !identity) return undefined;
 
     function onGameStarted({ gameId, startedBy }) {
       if (startedBy === identity.userId) return; // it was us
@@ -244,7 +244,7 @@ export default function Room() {
       socket.off('game:started', onGameStarted);
       socket.off('game:ended', onGameEnded);
     };
-  }, [chat.socket, chat.members, chat.notifyLocal, identity.userId]);
+  }, [chat.socket, chat.members, chat.notifyLocal, identity]);
 
   // Opening the games panel counts as having "seen" the invite.
   useEffect(() => {
