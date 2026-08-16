@@ -87,10 +87,11 @@ body {
    the footer. Kept faint on purpose (no glow/shadow, thin highlight band,
    long idle interval between sweeps). */
 .text-shine {
-  background-image: linear-gradient(100deg, currentColor 40%, #f3e9d2 50%, currentColor 60%);
+  background-image: linear-gradient(100deg, #C4CBD4 40%, #f3e9d2 50%, #C4CBD4 60%);
   background-size: 250% 100%;
   background-clip: text;
   -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
   animation: textShine 5s ease-in-out infinite;
 }

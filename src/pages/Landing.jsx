@@ -400,7 +400,7 @@ export default function Landing() {
             className="group flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-mist-400 rounded-xl -mx-2 px-2 py-1.5 transition-colors hover:bg-ink-800/60"
           >
             <span>
-              Created by <span className="text-mist-200 font-medium text-shine">VivekG</span>
+              Created by <span className="text-mist-100 font-medium text-shine">VivekG</span>
             </span>
             <span className="px-3 py-1.5 rounded-lg border border-signal-500 text-signal-500 font-medium bg-ink-950 transition-colors group-hover:bg-signal-500 group-hover:text-ink-950">
               Reach out
