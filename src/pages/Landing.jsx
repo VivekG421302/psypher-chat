@@ -393,17 +393,19 @@ export default function Landing() {
         </div>
 
         <footer className="mt-10 pb-6 border-t border-ink-700 pt-5">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-mist-400">
-            <span>Created by <span className="text-mist-200 font-medium">VivekG</span></span>
-            <a
-              href="https://vivek-gupta-dev.vercel.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-signal-500 hover:text-signal-300 font-medium transition-colors"
-            >
+          <a
+            href="https://vivek-gupta-dev.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-mist-400 rounded-xl -mx-2 px-2 py-1.5 transition-colors hover:bg-ink-800/60"
+          >
+            <span>
+              Created by <span className="text-mist-200 font-medium text-shine">VivekG</span>
+            </span>
+            <span className="px-3 py-1.5 rounded-lg border border-signal-500 text-signal-500 font-medium bg-ink-950 transition-colors group-hover:bg-signal-500 group-hover:text-ink-950">
               Reach out
-            </a>
-          </div>
+            </span>
+          </a>
         </footer>
       </div>
     </div>
