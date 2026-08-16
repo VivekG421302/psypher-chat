@@ -391,6 +391,17 @@ export default function Landing() {
             <PastRooms onRejoin={handleRejoin} onRecreate={handleRecreate} />
           </motion.div>
         </div>
+
+        <footer className="mt-10 pb-6 text-center">
+          <a
+            href="https://vivek-gupta-dev.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] text-mist-700 hover:text-signal-500 transition-colors"
+          >
+            Built by Vivek Gupta — reach out
+          </a>
+        </footer>
       </div>
     </div>
   );
