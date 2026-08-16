@@ -400,7 +400,7 @@ export default function MessageInput({
         <div className="relative flex-1 min-w-0">
           {isEmpty && !pendingImage && (
             <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-mist-700 truncate max-w-[calc(100%-1.75rem)]">
-              {disabled ? 'Reconnecting…' : isEditing ? 'Edit your message…' : 'Type an encrypted message…'}
+              {disabled ? 'Reconnecting…' : isEditing ? 'Edit your message…' : 'Type a message…  ·  / to focus  ·  G for games'}
             </span>
           )}
           <div
@@ -411,6 +411,7 @@ export default function MessageInput({
             onBeforeInput={handleBeforeInput}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
+            data-chat-input
             role="textbox"
             aria-multiline="true"
             aria-label="Message"

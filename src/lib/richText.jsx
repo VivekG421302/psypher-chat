@@ -290,25 +290,29 @@ export function autoFormatEmphasis() {
 export function startNumberedListIfMatched(editorEl) {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return false;
-  const node = sel.getRangeAt(0).startContainer;
-  let blockEl = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-  while (blockEl && blockEl !== editorEl && blockEl.parentElement !== editorEl) {
-    blockEl = blockEl.parentElement;
-  }
-  const target = blockEl && blockEl !== editorEl ? blockEl : editorEl;
-  const text = target.textContent;
-  if (!/^1\.\s$/.test(text || '')) return false;
 
-  target.textContent = '';
-  // Clearing textContent invalidates any existing selection range, so
-  // re-place the caret inside the now-empty block before converting it.
+  // Only trigger when the entire editor content is exactly "1. "
+  const text = editorEl.textContent;
+  if (!/^1\.\s$/.test(text)) return false;
+
+  // Clear and inject a real <ol><li> so typing continues into item 1
+  editorEl.innerHTML = '';
+  const ol = document.createElement('ol');
+  ol.style.paddingLeft = '1.25rem';
+  ol.style.margin = '0.25rem 0';
+  const li = document.createElement('li');
+  const br = document.createElement('br');
+  li.appendChild(br);
+  ol.appendChild(li);
+  editorEl.appendChild(ol);
+
+  // Place caret at start of the LI
   const range = document.createRange();
-  range.selectNodeContents(target);
+  range.setStart(li, 0);
   range.collapse(true);
   sel.removeAllRanges();
   sel.addRange(range);
   editorEl.focus();
 
-  document.execCommand('insertOrderedList');
   return true;
 }

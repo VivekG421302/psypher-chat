@@ -275,6 +275,7 @@ function GameListSkeleton() {
 export default function GamesDrawer({
   open, onClose, roomId, identity, memberCount, chat, inline = false,
   opponentActiveGame = null, // { gameId } tracked at Room level — see Room.jsx
+  gameListFocus = -1,        // keyboard-navigated index (-1 = none)
 }) {
   const [games, setGames] = useState([]);
   const [gamesLoading, setGamesLoading] = useState(false);
@@ -282,15 +283,44 @@ export default function GamesDrawer({
   const [activeGameId, setActiveGameId] = useState(null);
   const callouts = useCallouts(chat.messages, open);
 
-  // Notify others when we start/leave a game
+  // Notify others when we start/leave a game.
+  // We use a ref to track the PREVIOUS value so we never emit game:ended
+  // on the initial mount (when activeGameId is null from the start).
+  const prevActiveGameIdRef = useRef(undefined);
   useEffect(() => {
     if (!chat.socket?.current) return;
+    const prev = prevActiveGameIdRef.current;
+    prevActiveGameIdRef.current = activeGameId;
     if (activeGameId) {
       chat.socket.current.emit('game:started', { roomId, gameId: activeGameId, startedBy: identity.userId });
-    } else {
+    } else if (prev !== undefined && prev !== null) {
+      // Only emit ended when transitioning FROM a game, not on first render
       chat.socket.current.emit('game:ended', { roomId });
     }
   }, [activeGameId, roomId, identity.userId, chat.socket]);
+
+  // Refs for keyboard-navigated game list items
+  const gameItemRefs = useRef([]);
+
+  // Listen for keyboard "Enter" selection dispatched by Room.jsx shortcut handler
+  useEffect(() => {
+    function onSelect(e) {
+      const idx = e.detail?.index;
+      const availableGames = games.filter((g) => !!GAME_COMPONENTS[g.id]);
+      if (idx >= 0 && idx < availableGames.length) {
+        setActiveGameId(availableGames[idx].id);
+      }
+    }
+    window.addEventListener('psypher:game-select', onSelect);
+    return () => window.removeEventListener('psypher:game-select', onSelect);
+  }, [games]);
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (gameListFocus >= 0 && gameItemRefs.current[gameListFocus]) {
+      gameItemRefs.current[gameListFocus].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [gameListFocus]);
 
   function loadGames() {
     setGamesLoading(true);
@@ -380,12 +410,17 @@ export default function GamesDrawer({
                   return (
                     <motion.button
                       key={g.id}
+                      ref={(el) => { gameItemRefs.current[i] = el; }}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.04, duration: 0.2 }}
                       disabled={!available}
                       onClick={() => setActiveGameId(g.id)}
-                      className="group w-full text-left rounded-xl border border-ink-700 bg-ink-800/60 hover:border-cipher-500/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer disabled:hover:border-ink-700 transition-colors p-4 flex items-center gap-3"
+                      className={`group w-full text-left rounded-xl border bg-ink-800/60 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors p-4 flex items-center gap-3 ${
+                        gameListFocus === i
+                          ? 'border-signal-500 ring-1 ring-signal-500/30'
+                          : 'border-ink-700 hover:border-cipher-500/50 disabled:hover:border-ink-700'
+                      }`}
                     >
                       {/* Lucide icon, no emoji */}
                       <div className="w-10 h-10 rounded-lg bg-ink-700 flex items-center justify-center text-mist-400 group-hover:text-cipher-400 transition-colors shrink-0 relative">

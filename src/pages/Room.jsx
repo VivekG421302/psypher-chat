@@ -216,6 +216,59 @@ export default function Room() {
   const chat = useChatRoom(roomId, identity);
   const viewportHeight = useViewportHeight();
 
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────
+  // /          → focus chat input
+  // G          → open games panel (when closed) or close it (when open)
+  // Escape     → close games panel (if open and no game active)
+  // ─ (inside games panel via a shared ref)
+  // ArrowUp / ArrowDown → navigate game list when games panel is open
+  const [gameListFocus, setGameListFocus] = useState(-1); // index in games list
+  useEffect(() => {
+    function onKey(e) {
+      // Ignore when typing in any input / contenteditable
+      const tag = document.activeElement?.tagName;
+      const inInput = tag === 'INPUT' || tag === 'TEXTAREA' ||
+        document.activeElement?.isContentEditable;
+
+      if (e.key === '/' && !inInput) {
+        e.preventDefault();
+        const editor = document.querySelector('[data-chat-input]');
+        editor?.focus();
+        return;
+      }
+
+      if ((e.key === 'g' || e.key === 'G') && !inInput) {
+        e.preventDefault();
+        setGamesOpen((v) => !v);
+        setGameListFocus(0);
+        return;
+      }
+
+      if (e.key === 'Escape' && gamesOpen) {
+        setGamesOpen(false);
+        setGameListFocus(-1);
+        return;
+      }
+
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && gamesOpen) {
+        e.preventDefault();
+        setGameListFocus((prev) => {
+          const dir = e.key === 'ArrowDown' ? 1 : -1;
+          return Math.max(0, prev + dir);
+        });
+        return;
+      }
+
+      if (e.key === 'Enter' && gamesOpen && gameListFocus >= 0 && !inInput) {
+        e.preventDefault();
+        // Dispatch a custom event that GamesDrawer listens to
+        window.dispatchEvent(new CustomEvent('psypher:game-select', { detail: { index: gameListFocus } }));
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [gamesOpen, gameListFocus]);
+
   // ── Green-dot game invite: works regardless of whether the games panel
   // is open, since (unlike before) this listener lives at Room level and
   // is always mounted for the lifetime of the room. ──
@@ -451,29 +504,52 @@ export default function Room() {
         opponentGameUnseen={opponentGameUnseen}
       />
 
-      {/* Desktop: side-by-side. Mobile: toggled via mobileView state */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Chat area — hidden on mobile when showing game */}
+      {/*
+        Layout strategy:
+        - Desktop (lg+): always side-by-side — chat takes remaining space,
+          game panel is a fixed 420px column. Both visible simultaneously.
+        - Mobile: only one panel visible at a time, controlled by mobileView.
+          The outer div is `relative overflow-hidden`; both panels are
+          absolute-positioned side by side (200% wide total), and we
+          translate left/right to reveal the active one.
+      */}
+
+      {/* Desktop side-by-side wrapper */}
+      <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+          {ChatPanel}
+        </div>
+        {gamesOpen && (
+          <div className="flex flex-col w-[420px] shrink-0 min-h-0 overflow-hidden border-l border-ink-700">
+            <GamesDrawer
+              open={gamesOpen}
+              onClose={() => setGamesOpen(false)}
+              roomId={roomId}
+              identity={identity}
+              memberCount={memberCount}
+              chat={chat}
+              opponentActiveGame={opponentGame?.gameId || null}
+              gameListFocus={gameListFocus}
+              inline
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Mobile slide wrapper */}
+      <div className="lg:hidden flex flex-1 min-h-0 overflow-hidden relative">
+        {/* Chat — always mounted, translated left when game is active */}
         <div
-          className={`flex flex-col min-h-0 overflow-hidden transition-all duration-300 ${
-            gamesOpen
-              ? mobileView === 'game'
-                ? 'hidden lg:flex lg:flex-1'
-                : 'flex flex-1 lg:flex-1'
-              : 'flex flex-1'
-          }`}
+          className="absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out"
+          style={{ transform: gamesOpen && mobileView === 'game' ? 'translateX(-100%)' : 'translateX(0)' }}
         >
           {ChatPanel}
         </div>
-
-        {/* Game panel — inline on desktop, full-width on mobile when selected */}
+        {/* Game — always mounted when open, starts offscreen right */}
         {gamesOpen && (
           <div
-            className={`flex flex-col min-h-0 overflow-hidden border-l border-ink-700 transition-all duration-300 ${
-              mobileView === 'game'
-                ? 'flex flex-1 lg:w-[420px] lg:flex-none'
-                : 'hidden lg:flex lg:w-[420px] lg:flex-none'
-            }`}
+            className="absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out"
+            style={{ transform: mobileView === 'game' ? 'translateX(0)' : 'translateX(100%)' }}
           >
             <GamesDrawer
               open={gamesOpen}
@@ -483,6 +559,7 @@ export default function Room() {
               memberCount={memberCount}
               chat={chat}
               opponentActiveGame={opponentGame?.gameId || null}
+              gameListFocus={gameListFocus}
               inline
             />
           </div>

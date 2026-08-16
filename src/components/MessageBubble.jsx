@@ -32,7 +32,7 @@ function RichText({ text }) {
 
   const lines = text.split('\n');
   return (
-    <span className="whitespace-pre-wrap break-words">
+    <span className="whitespace-pre-wrap" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
       {lines.map((line, li) => (
         <span key={li}>
           {li > 0 && <br />}
@@ -134,7 +134,7 @@ export default function MessageBubble({
             e.preventDefault();
             setShowActions((v) => !v);
           }}
-          className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed break-words select-none sm:select-text cursor-pointer sm:cursor-auto ${
+          className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed select-none sm:select-text cursor-pointer sm:cursor-auto [word-break:break-word] [overflow-wrap:anywhere] ${
             selected ? 'ring-2 ring-signal-500' : ''
           } ${
             m.mine

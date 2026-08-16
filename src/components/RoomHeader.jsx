@@ -120,25 +120,25 @@ export default function RoomHeader({
             <div className="flex lg:hidden items-center gap-0.5 rounded-lg border border-ink-700 bg-ink-800 p-0.5">
               <button
                 onClick={() => setMobileView('chat')}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
                   mobileView === 'chat'
                     ? 'bg-signal-500 text-ink-950'
                     : 'text-mist-400 hover:text-mist-100'
                 }`}
               >
                 <MessageSquare size={13} />
-                <span className="hidden xs:inline">Chat</span>
+                <span>Chat</span>
               </button>
               <button
                 onClick={() => setMobileView('game')}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
                   mobileView === 'game'
                     ? 'bg-cipher-500 text-ink-950'
                     : 'text-mist-400 hover:text-mist-100'
                 }`}
               >
                 <Gamepad2 size={13} />
-                <span className="hidden xs:inline">Game</span>
+                <span>Game</span>
               </button>
             </div>
           )}
