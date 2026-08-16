@@ -2,21 +2,22 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   X, ChevronLeft, Send, MessageSquare, ChevronDown, ChevronUp, Smile,
-  Layers, Dices, Grid3x3, Shuffle, Crown, Pencil, Swords,
+  Spade, Dices, Grid3x3, Footprints, Swords, Pencil, UserSearch,
 } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { GAME_COMPONENTS } from '../games/registry.js';
 import Avatar from './Avatar.jsx';
 import QuickReactBar from './QuickReactBar.jsx';
 
-// Map game IDs to Lucide icons (no emoji)
+// Map game IDs to Lucide icons (no emoji) — picked to actually resemble
+// what each game is about rather than generic placeholders.
 const GAME_ICONS = {
-  uno: Layers,
-  guesswho: Crown,
-  tictactoe: Grid3x3,
-  'glass-bridge': Shuffle,
-  chess: Swords,
-  sketch: Pencil,
+  uno: Spade,          // card game
+  guesswho: UserSearch, // "who is it" guessing
+  tictactoe: Grid3x3,   // literal 3x3 grid
+  'glass-bridge': Footprints, // stepping across panels
+  chess: Swords,        // strategic combat
+  sketch: Pencil,        // drawing
   default: Dices,
 };
 

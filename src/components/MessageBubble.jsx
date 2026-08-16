@@ -4,14 +4,16 @@ import { Pencil, Trash2, Copy, Smile, Check, CheckSquare } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import QuickReactBar from './QuickReactBar.jsx';
 import { useLongPress } from '../lib/useLongPress.js';
+import { renderInlineMarkdown } from '../lib/richText.jsx';
 
 function formatTime(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 /**
- * Render message text with basic markdown:
- *   **bold**, _italic_, and numbered lists preserved across newlines.
+ * Render message text with inline markdown:
+ *   *bold*, _italic_, ~strikethrough~, #underline# (combinable), and
+ *   numbered lists preserved across newlines.
  */
 function RichText({ text }) {
   // Handle image messages
@@ -34,31 +36,11 @@ function RichText({ text }) {
       {lines.map((line, li) => (
         <span key={li}>
           {li > 0 && <br />}
-          {renderInline(line)}
+          {renderInlineMarkdown(line, `l${li}`)}
         </span>
       ))}
     </span>
   );
-}
-
-function renderInline(text) {
-  // Bold: **...**  Italic: _..._
-  const parts = [];
-  const regex = /(\*\*(.+?)\*\*|_(.+?)_)/g;
-  let last = 0;
-  let m;
-  let key = 0;
-  while ((m = regex.exec(text)) !== null) {
-    if (m.index > last) parts.push(<span key={key++}>{text.slice(last, m.index)}</span>);
-    if (m[0].startsWith('**')) {
-      parts.push(<strong key={key++} className="font-bold">{m[2]}</strong>);
-    } else {
-      parts.push(<em key={key++} className="italic">{m[3]}</em>);
-    }
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) parts.push(<span key={key++}>{text.slice(last)}</span>);
-  return parts.length ? parts : text;
 }
 
 export default function MessageBubble({

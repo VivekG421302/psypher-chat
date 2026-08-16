@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { Send, Smile, X, Check, Bold, Italic, List, Image as ImageIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  Send, Smile, X, Check, Bold, Italic, Underline as UnderlineIcon,
+  Strikethrough, CheckSquare, Paperclip,
+} from 'lucide-react';
 import EmojiPicker from './EmojiPicker.jsx';
+import { domToMarkdown, markdownToHtml, autoFormatEmphasis, startNumberedListIfMatched } from '../lib/richText.jsx';
+
+const MAX_LENGTH = 1000;
 
 export default function MessageInput({
   onSend,
@@ -11,27 +17,27 @@ export default function MessageInput({
   onSubmitEdit,
   onCancelEdit,
 }) {
-  const [value, setValue] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pendingImage, setPendingImage] = useState(null); // { dataUrl, name }
+  const [isEmpty, setIsEmpty] = useState(true);
+  const [selectionToolbar, setSelectionToolbar] = useState(false);
+
+  const editorRef = useRef(null);
   const typingActive = useRef(false);
   const typingStopTimer = useRef(null);
-  const textareaRef = useRef(null);
   const pickerWrapRef = useRef(null);
   const emojiButtonRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const isEditing = !!editingMessage;
 
-  // ── Close picker on outside click (excluding the toggle button itself) ──
+  // ── Close emoji picker on outside click, or after picking an emoji ──
   useEffect(() => {
     if (!pickerOpen) return undefined;
     function onDocClick(e) {
       if (
-        pickerWrapRef.current &&
-        !pickerWrapRef.current.contains(e.target) &&
-        emojiButtonRef.current &&
-        !emojiButtonRef.current.contains(e.target)
+        pickerWrapRef.current && !pickerWrapRef.current.contains(e.target) &&
+        emojiButtonRef.current && !emojiButtonRef.current.contains(e.target)
       ) {
         setPickerOpen(false);
       }
@@ -40,28 +46,55 @@ export default function MessageInput({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [pickerOpen]);
 
+  // ── Hydrate the editor when entering edit mode ──
   useEffect(() => {
-    if (isEditing) {
-      setValue(editingMessage.text);
-      textareaRef.current?.focus();
+    if (isEditing && editorRef.current) {
+      editorRef.current.innerHTML = markdownToHtml(editingMessage.text);
+      setIsEmpty(!editingMessage.text?.trim());
+      focusEnd();
     }
-  }, [editingMessage, isEditing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingMessage?.id]);
 
-  // ── Paste handler: intercept image pastes ──
-  const handlePaste = useCallback((e) => {
-    const items = Array.from(e.clipboardData?.items || []);
-    const imgItem = items.find((it) => it.type.startsWith('image/'));
-    if (!imgItem) return;
-    e.preventDefault();
-    const file = imgItem.getAsFile();
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setPendingImage({ dataUrl: ev.target.result, name: file.name || 'image.png' });
-    reader.readAsDataURL(file);
+  // ── Show a small floating toolbar whenever there's a real selection inside the input ──
+  useEffect(() => {
+    function onSelectionChange() {
+      const sel = window.getSelection();
+      const el = editorRef.current;
+      if (!sel || !el || sel.rangeCount === 0 || sel.isCollapsed) {
+        setSelectionToolbar(false);
+        return;
+      }
+      setSelectionToolbar(el.contains(sel.anchorNode) && el.contains(sel.focusNode));
+    }
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => document.removeEventListener('selectionchange', onSelectionChange);
   }, []);
 
-  function handleChange(e) {
-    setValue(e.target.value);
+  function focusEnd() {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function refreshEmptyState() {
+    const text = editorRef.current?.textContent || '';
+    setIsEmpty(text.trim().length === 0);
+  }
+
+  function clearEditor() {
+    if (editorRef.current) editorRef.current.innerHTML = '';
+    setIsEmpty(true);
+  }
+
+  // ── Typing indicator + live *bold*/_italic_/~strike~/#underline# + "1. " list auto-start ──
+  function handleInput() {
     if (!typingActive.current) {
       typingActive.current = true;
       onTyping(true);
@@ -71,68 +104,119 @@ export default function MessageInput({
       typingActive.current = false;
       onTyping(false);
     }, 1500);
+
+    autoFormatEmphasis();
+    if (editorRef.current) startNumberedListIfMatched(editorRef.current);
+    refreshEmptyState();
   }
 
-  function submit(e) {
-    e?.preventDefault();
-    // Image send
-    if (pendingImage) {
-      onSend(`[image]${pendingImage.dataUrl}`);
-      setPendingImage(null);
-      return;
+  function handleBeforeInput(e) {
+    if (disabled) { e.preventDefault(); return; }
+    const currentLen = editorRef.current?.textContent.length || 0;
+    const insertData = typeof e.data === 'string' ? e.data : '';
+    if (e.inputType?.startsWith('insert') && insertData && currentLen + insertData.length > MAX_LENGTH) {
+      e.preventDefault();
     }
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    if (isEditing) {
-      onSubmitEdit(editingMessage.id, trimmed);
-    } else {
-      onSend(trimmed);
+  }
+
+  function isCaretInsideList() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return false;
+    const root = editorRef.current;
+    let node = sel.getRangeAt(0).startContainer;
+    while (node && node !== root) {
+      if (node.nodeType === 1 && (node.tagName === 'LI' || node.tagName === 'OL')) return true;
+      node = node.parentNode;
     }
-    setValue('');
-    typingActive.current = false;
-    onTyping(false);
+    return false;
   }
 
   function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      submit(e);
+    if (e.key === 'Enter') {
+      // Inside an active numbered list, let the browser continue/exit it
+      // natively instead of sending the message.
+      if (isCaretInsideList()) return;
+      if (!e.shiftKey) {
+        e.preventDefault();
+        submit();
+      }
     }
     if (e.key === 'Escape' && isEditing) {
       onCancelEdit();
-      setValue('');
+      clearEditor();
     }
   }
 
-  // ── Formatting helpers ──
-  function wrapSelection(before, after = before) {
-    const el = textareaRef.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const selected = value.slice(start, end);
-    const newVal = value.slice(0, start) + before + selected + after + value.slice(end);
-    setValue(newVal);
-    setTimeout(() => {
-      el.focus();
-      el.setSelectionRange(start + before.length, end + before.length);
-    }, 0);
+  function getInsertionRange() {
+    const el = editorRef.current;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
+      return sel.getRangeAt(0);
+    }
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    return range;
   }
 
-  function insertNumberedList() {
-    const el = textareaRef.current;
+  function handlePaste(e) {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imgItem = items.find((it) => it.type.startsWith('image/'));
+    if (imgItem) {
+      e.preventDefault();
+      const file = imgItem.getAsFile();
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => setPendingImage({ dataUrl: ev.target.result, name: file.name || 'image.png' });
+      reader.readAsDataURL(file);
+      return;
+    }
+    // Plain-text only, to avoid pasting in foreign rich HTML/styles
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    insertPlainText(text);
+    refreshEmptyState();
+  }
+
+  function insertPlainText(text) {
+    const el = editorRef.current;
     if (!el) return;
-    const pos = el.selectionStart;
-    // Count existing lines to pick next number
-    const linesBefore = value.slice(0, pos).split('\n');
-    const num = linesBefore.length;
-    const insert = `\n${num}. `;
-    const newVal = value.slice(0, pos) + insert + value.slice(pos);
-    setValue(newVal);
-    setTimeout(() => {
-      el.focus();
-      el.setSelectionRange(pos + insert.length, pos + insert.length);
-    }, 0);
+    el.focus();
+    const range = getInsertionRange();
+    range.deleteContents();
+    const parts = text.split('\n');
+    const frag = document.createDocumentFragment();
+    parts.forEach((part, i) => {
+      frag.appendChild(document.createTextNode(part));
+      if (i < parts.length - 1) frag.appendChild(document.createElement('br'));
+    });
+    const lastNode = frag.lastChild;
+    range.insertNode(frag);
+    if (lastNode) {
+      const newRange = document.createRange();
+      newRange.setStartAfter(lastNode);
+      newRange.collapse(true);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+  }
+
+  function insertEmoji(emoji) {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    const range = getInsertionRange();
+    range.deleteContents();
+    const node = document.createTextNode(emoji);
+    range.insertNode(node);
+    const newRange = document.createRange();
+    newRange.setStartAfter(node);
+    newRange.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    refreshEmptyState();
   }
 
   function handleImageFile(e) {
@@ -142,6 +226,43 @@ export default function MessageInput({
     reader.onload = (ev) => setPendingImage({ dataUrl: ev.target.result, name: file.name });
     reader.readAsDataURL(file);
     e.target.value = '';
+  }
+
+  // ── Selection formatting toolbar actions ──
+  function applyFormat(cmd) {
+    editorRef.current?.focus();
+    document.execCommand(cmd);
+  }
+
+  function selectAllText() {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function submit(e) {
+    e?.preventDefault?.();
+    if (pendingImage) {
+      onSend(`[image]${pendingImage.dataUrl}`);
+      setPendingImage(null);
+      clearEditor();
+      return;
+    }
+    const markdown = editorRef.current ? domToMarkdown(editorRef.current).trim() : '';
+    if (!markdown) return;
+    if (isEditing) {
+      onSubmitEdit(editingMessage.id, markdown);
+    } else {
+      onSend(markdown);
+    }
+    clearEditor();
+    typingActive.current = false;
+    onTyping(false);
   }
 
   return (
@@ -154,7 +275,7 @@ export default function MessageInput({
           </span>
           <button
             type="button"
-            onClick={() => { onCancelEdit(); setValue(''); }}
+            onClick={() => { onCancelEdit(); clearEditor(); }}
             className="text-mist-500 hover:text-mist-100 transition-colors cursor-pointer"
             aria-label="Cancel edit"
           >
@@ -182,14 +303,13 @@ export default function MessageInput({
         </div>
       )}
 
-      {/* Emoji picker */}
+      {/* Emoji picker popup */}
       <AnimatePresence>
         {pickerOpen && (
           <div ref={pickerWrapRef} className="absolute bottom-full mb-2 left-3 z-30">
             <EmojiPicker
               onPick={(em) => {
-                setValue((v) => v + em);
-                textareaRef.current?.focus();
+                insertEmoji(em);
                 setPickerOpen(false);
               }}
             />
@@ -197,55 +317,119 @@ export default function MessageInput({
         )}
       </AnimatePresence>
 
-      {/* Formatting toolbar */}
-      <div className="flex items-center gap-1 mb-2 px-0.5">
-        <button
-          type="button"
-          onClick={() => wrapSelection('**')}
-          className="p-1.5 rounded-lg text-mist-600 hover:text-mist-100 hover:bg-ink-800 transition-colors cursor-pointer"
-          aria-label="Bold"
-          title="Bold (**text**)"
-        >
-          <Bold size={13} />
-        </button>
-        <button
-          type="button"
-          onClick={() => wrapSelection('_')}
-          className="p-1.5 rounded-lg text-mist-600 hover:text-mist-100 hover:bg-ink-800 transition-colors cursor-pointer"
-          aria-label="Italic"
-          title="Italic (_text_)"
-        >
-          <Italic size={13} />
-        </button>
-        <button
-          type="button"
-          onClick={insertNumberedList}
-          className="p-1.5 rounded-lg text-mist-600 hover:text-mist-100 hover:bg-ink-800 transition-colors cursor-pointer"
-          aria-label="Numbered list"
-          title="Numbered list"
-        >
-          <List size={13} />
-        </button>
-        <div className="w-px h-4 bg-ink-700 mx-1" />
+      {/* Floating formatting toolbar — only when text is selected */}
+      <AnimatePresence>
+        {selectionToolbar && !pendingImage && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.15 }}
+            className="absolute bottom-full mb-2 left-3 z-30 flex items-center gap-0.5 rounded-xl border border-ink-600 bg-ink-800 p-1 shadow-xl"
+          >
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => applyFormat('bold')}
+              className="p-1.5 rounded-lg text-mist-300 hover:text-mist-100 hover:bg-ink-700 transition-colors cursor-pointer"
+              aria-label="Bold"
+              title="Bold"
+            >
+              <Bold size={14} />
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => applyFormat('italic')}
+              className="p-1.5 rounded-lg text-mist-300 hover:text-mist-100 hover:bg-ink-700 transition-colors cursor-pointer"
+              aria-label="Italic"
+              title="Italic"
+            >
+              <Italic size={14} />
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => applyFormat('underline')}
+              className="p-1.5 rounded-lg text-mist-300 hover:text-mist-100 hover:bg-ink-700 transition-colors cursor-pointer"
+              aria-label="Underline"
+              title="Underline"
+            >
+              <UnderlineIcon size={14} />
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => applyFormat('strikeThrough')}
+              className="p-1.5 rounded-lg text-mist-300 hover:text-mist-100 hover:bg-ink-700 transition-colors cursor-pointer"
+              aria-label="Strikethrough"
+              title="Strikethrough"
+            >
+              <Strikethrough size={14} />
+            </button>
+            <div className="w-px h-4 bg-ink-700 mx-0.5" />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={selectAllText}
+              className="p-1.5 rounded-lg text-mist-300 hover:text-mist-100 hover:bg-ink-700 transition-colors cursor-pointer"
+              aria-label="Select all"
+              title="Select all"
+            >
+              <CheckSquare size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Input row: emoji on the left, attachment on the right */}
+      <div className="flex items-end gap-2">
         <button
           type="button"
           ref={emojiButtonRef}
           onClick={() => setPickerOpen((v) => !v)}
-          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-            pickerOpen ? 'text-signal-500 bg-ink-800' : 'text-mist-600 hover:text-signal-500 hover:bg-ink-800'
+          disabled={disabled}
+          className={`shrink-0 p-2 rounded-xl transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+            pickerOpen ? 'text-signal-500 bg-ink-800' : 'text-mist-500 hover:text-signal-500 hover:bg-ink-800'
           }`}
           aria-label="Emoji picker"
         >
-          <Smile size={13} />
+          <Smile size={19} />
         </button>
+
+        <div className="relative flex-1 min-w-0">
+          {isEmpty && !pendingImage && (
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-mist-700 truncate max-w-[calc(100%-1.75rem)]">
+              {disabled ? 'Reconnecting…' : isEditing ? 'Edit your message…' : 'Type an encrypted message…'}
+            </span>
+          )}
+          <div
+            ref={editorRef}
+            contentEditable={!disabled && !pendingImage}
+            suppressContentEditableWarning
+            onInput={handleInput}
+            onBeforeInput={handleBeforeInput}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            role="textbox"
+            aria-multiline="true"
+            aria-label="Message"
+            className={`w-full resize-none rounded-xl bg-ink-800 border px-3.5 py-2.5 text-sm text-mist-100 outline-none max-h-32 overflow-y-auto transition-colors ${
+              disabled || pendingImage ? 'opacity-50' : ''
+            } ${isEditing ? 'border-cipher-500' : 'border-ink-600 focus:border-signal-500'}`}
+            style={{ minHeight: '2.625rem' }}
+          />
+        </div>
+
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="p-1.5 rounded-lg text-mist-600 hover:text-signal-500 hover:bg-ink-800 transition-colors cursor-pointer"
+          disabled={disabled}
+          className="shrink-0 p-2 rounded-xl text-mist-500 hover:text-signal-500 hover:bg-ink-800 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label="Attach image"
           title="Attach image"
         >
-          <ImageIcon size={13} />
+          <Paperclip size={18} />
         </button>
         <input
           ref={fileInputRef}
@@ -254,33 +438,11 @@ export default function MessageInput({
           className="hidden"
           onChange={handleImageFile}
         />
-      </div>
 
-      <div className="flex items-end gap-2">
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder={
-            disabled
-              ? 'Reconnecting…'
-              : isEditing
-              ? 'Edit your message…'
-              : 'Type an encrypted message… (Shift+Enter for new line)'
-          }
-          rows={1}
-          maxLength={1000}
-          disabled={disabled || !!pendingImage}
-          className={`flex-1 resize-none rounded-xl bg-ink-800 border px-3.5 py-2.5 text-sm text-mist-100 placeholder:text-mist-700 outline-none max-h-32 transition-colors disabled:opacity-50 ${
-            isEditing ? 'border-cipher-500' : 'border-ink-600 focus:border-signal-500'
-          }`}
-        />
         <button
           type="button"
           onClick={submit}
-          disabled={(!value.trim() && !pendingImage) || disabled}
+          disabled={(isEmpty && !pendingImage) || disabled}
           className={`shrink-0 rounded-xl disabled:bg-ink-700 disabled:text-mist-700 disabled:cursor-not-allowed cursor-pointer text-ink-950 p-2.5 transition-colors ${
             isEditing ? 'bg-cipher-500 hover:bg-cipher-300' : 'bg-signal-500 hover:bg-signal-300'
           }`}
