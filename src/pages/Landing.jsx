@@ -392,15 +392,18 @@ export default function Landing() {
           </motion.div>
         </div>
 
-        <footer className="mt-10 pb-6 text-center">
-          <a
-            href="https://vivek-gupta-dev.vercel.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-mist-700 hover:text-signal-500 transition-colors"
-          >
-            Built by Vivek Gupta — reach out
-          </a>
+        <footer className="mt-10 pb-6 border-t border-ink-700 pt-5">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-mist-400">
+            <span>Created by <span className="text-mist-200 font-medium">VivekG</span></span>
+            <a
+              href="https://vivek-gupta-dev.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-signal-500 hover:text-signal-300 font-medium transition-colors"
+            >
+              Reach out
+            </a>
+          </div>
         </footer>
       </div>
     </div>
