@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck, ArrowRight, KeySquare, Timer, Gamepad2,
-  Clock, Hash, Trash2, ChevronRight, RefreshCcw, AlertCircle, Pin,
+  Clock, Hash, Trash2, ChevronRight, RefreshCcw, AlertCircle, Pin, BookMarked,
 } from 'lucide-react';
 import DecryptText from '../components/DecryptText.jsx';
 import Spinner from '../components/Spinner.jsx';
@@ -160,12 +160,21 @@ function PastRooms({ onRejoin, onRecreate }) {
       transition={{ delay: 0.2, duration: 0.35 }}
       className="mt-6"
     >
-      <p className="text-xs text-mist-600 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-        <Clock size={11} /> Past rooms
-      </p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs text-mist-600 uppercase tracking-widest flex items-center gap-1.5">
+          <Clock size={11} /> Past rooms
+        </p>
+        <Link
+          to="/directory"
+          className="flex items-center gap-1 text-[11px] text-cipher-500 hover:text-cipher-300 transition-colors"
+        >
+          <BookMarked size={11} />
+          View directory
+        </Link>
+      </div>
       <div className="space-y-1.5">
         <AnimatePresence initial={false}>
-          {rooms.slice(0, 6).map(room => (
+          {rooms.slice(0, 4).map(room => (
             <PastRoomRow
               key={room.roomId}
               room={room}
