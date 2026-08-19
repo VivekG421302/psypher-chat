@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck, ArrowRight, KeySquare, Timer, Gamepad2,
@@ -8,6 +8,7 @@ import {
 import DecryptText from '../components/DecryptText.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { useProfile } from '../context/ProfileContext.jsx';
+import { useDirectory } from '../context/DirectoryContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { api } from '../lib/api.js';
 import {
@@ -118,6 +119,19 @@ function PastRoomRow({ room, onRejoin, onRecreate }) {
   );
 }
 
+function DirectoryButton() {
+  const { openDirectory } = useDirectory();
+  return (
+    <button
+      onClick={openDirectory}
+      className="flex items-center gap-1 text-[11px] text-cipher-500 hover:text-cipher-300 transition-colors cursor-pointer"
+    >
+      <BookMarked size={11} />
+      View all
+    </button>
+  );
+}
+
 function PastRooms({ onRejoin, onRecreate }) {
   const [rooms, setRooms] = useState([]);
 
@@ -138,13 +152,7 @@ function PastRooms({ onRejoin, onRecreate }) {
         <p className="text-xs text-mist-600 uppercase tracking-widest flex items-center gap-1.5">
           <Clock size={11} /> Past rooms
         </p>
-        <Link
-          to="/directory"
-          className="flex items-center gap-1 text-[11px] text-cipher-500 hover:text-cipher-300 transition-colors"
-        >
-          <BookMarked size={11} />
-          View directory
-        </Link>
+        <DirectoryButton />
       </div>
       <div className="space-y-1.5">
         <AnimatePresence initial={false}>

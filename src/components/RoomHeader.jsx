@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Copy, Check, LogOut, Gamepad2, ShieldCheck, Users, Pin, PinOff, MessageSquare, Edit3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext.jsx';
+import { useDirectory } from '../context/DirectoryContext.jsx';
 import { loadRooms, rememberRoom } from '../lib/storage.js';
 
 export default function RoomHeader({
@@ -22,6 +23,7 @@ export default function RoomHeader({
   const [labelInput, setLabelInput] = useState('');
   const labelInputRef = useRef(null);
   const navigate = useNavigate();
+  const { openDirectory } = useDirectory();
   const { notify } = useToast();
 
   // Load saved pin/label state from storage
@@ -142,6 +144,16 @@ export default function RoomHeader({
               </button>
             </div>
           )}
+
+          {/* Directory */}
+          <button
+            onClick={openDirectory}
+            className="p-1.5 rounded-lg border border-ink-600 text-mist-400 hover:text-cipher-500 hover:border-cipher-500/40 transition-colors cursor-pointer"
+            title="Room directory"
+            aria-label="Open room directory"
+          >
+            <BookMarked size={15} />
+          </button>
 
           {/* Rename room */}
           <button
