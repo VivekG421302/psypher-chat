@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Pin, PinOff, Trash2, RefreshCcw, Edit3,
-  Check, X, Hash, AlertCircle, Clock, BookMarked, ChevronRight,
+  Check, X, Hash, AlertCircle, Clock, Bookmark, ChevronRight,
   SortAsc, SortDesc, ShieldCheck, Inbox,
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext.jsx';
@@ -360,7 +360,7 @@ export default function Directory() {
       {/* Top bar */}
       <header className="sticky top-0 z-20 border-b border-ink-700 bg-ink-900/90 backdrop-blur px-4 py-3 flex items-center gap-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <BookMarked size={16} className="text-cipher-500 shrink-0" />
+          <Bookmark size={16} className="text-cipher-500 shrink-0" />
           <h1 className="font-display text-sm tracking-widest text-mist-100 truncate">
             ROOM DIRECTORY
           </h1>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck, ArrowRight, KeySquare, Timer, Gamepad2,
-  Clock, Hash, ChevronRight, RefreshCcw, AlertCircle, Pin, BookMarked,
+  Clock, Hash, ChevronRight, RefreshCcw, AlertCircle, Pin, Bookmark,
 } from 'lucide-react';
 import DecryptText from '../components/DecryptText.jsx';
 import Spinner from '../components/Spinner.jsx';
@@ -126,7 +126,7 @@ function DirectoryButton() {
       onClick={openDirectory}
       className="flex items-center gap-1 text-[11px] text-cipher-500 hover:text-cipher-300 transition-colors cursor-pointer"
     >
-      <BookMarked size={11} />
+      <Bookmark size={11} />
       View all
     </button>
   );

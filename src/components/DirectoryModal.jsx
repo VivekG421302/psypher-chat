@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Search, Pin, PinOff, Trash2, RefreshCcw, Edit3,
   Check, Hash, AlertCircle, Clock, ChevronRight,
-  BookMarked, Inbox, SortDesc, SortAsc,
+  Bookmark, Inbox, SortDesc, SortAsc,
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext.jsx';
 import { useProfile } from '../context/ProfileContext.jsx';
@@ -289,7 +289,7 @@ export default function DirectoryModal() {
           >
             {/* Header */}
             <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-ink-700/60 shrink-0">
-              <BookMarked size={16} className="text-cipher-500 shrink-0" />
+              <Bookmark size={16} className="text-cipher-500 shrink-0" />
               <div className="flex-1 min-w-0">
                 <h2 className="font-display text-[11px] tracking-[0.18em] text-mist-300">ROOM DIRECTORY</h2>
                 <p className="text-[10px] text-mist-700 mt-0.5">

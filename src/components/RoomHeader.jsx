@@ -152,7 +152,7 @@ export default function RoomHeader({
             title="Room directory"
             aria-label="Open room directory"
           >
-            <BookMarked size={15} />
+            <Bookmark size={15} />
           </button>
 
           {/* Rename room */}
