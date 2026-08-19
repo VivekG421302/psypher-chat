@@ -489,8 +489,8 @@ export default function Room() {
 
   return (
     <div
-      className="flex flex-col overflow-hidden"
-      style={{ height: viewportHeight ? `${viewportHeight}px` : '100dvh' }}
+      className="flex flex-col overflow-hidden fixed inset-0 z-10"
+      style={{ height: viewportHeight ? `${viewportHeight}px` : undefined }}
     >
       <RoomHeader
         roomId={roomId}
