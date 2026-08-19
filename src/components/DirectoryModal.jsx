@@ -191,7 +191,17 @@ export default function DirectoryModal() {
 
   const refresh = useCallback(() => setRooms(listPastRooms()), []);
 
-  useEffect(() => { if (open) { refresh(); setTimeout(() => searchRef.current?.focus(), 80); } }, [open, refresh]);
+  useEffect(() => {
+    if (open) {
+      refresh();
+      setTimeout(() => searchRef.current?.focus(), 80);
+      // Lock background scroll
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [open, refresh]);
 
   // Close on Escape
   useEffect(() => {
@@ -278,10 +288,10 @@ export default function DirectoryModal() {
             animate={{ opacity: 1, y: 0,  scale: 1 }}
             exit={{ opacity: 0,  y: 16, scale: 0.97 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50
-              w-full sm:w-[560px] sm:max-h-[80vh]
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
+              w-[calc(100vw-32px)] max-w-[560px] max-h-[85vh]
               flex flex-col
-              rounded-t-3xl sm:rounded-2xl
+              rounded-2xl
               border border-ink-700/80
               bg-ink-900
               shadow-2xl overflow-hidden"
@@ -390,10 +400,7 @@ export default function DirectoryModal() {
               </AnimatePresence>
             </div>
 
-            {/* Footer drag handle (mobile) */}
-            <div className="sm:hidden flex justify-center pt-1 pb-3 shrink-0">
-              <div className="w-10 h-1 rounded-full bg-ink-700" />
-            </div>
+
           </motion.div>
         </>
       )}
