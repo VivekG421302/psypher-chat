@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Search, Pin, PinOff, Trash2, RefreshCcw, Edit3,
+  Search, Pin, PinOff, Trash2, RefreshCcw, Edit3,
   Check, X, Hash, AlertCircle, Clock, BookMarked, ChevronRight,
   SortAsc, SortDesc, ShieldCheck, Inbox,
 } from 'lucide-react';
@@ -238,7 +238,7 @@ function RoomCard({ room, onUpdate, onForget, onRejoin, onRecreate }) {
                 ? 'text-danger bg-danger/15'
                 : 'text-mist-600 hover:text-danger hover:bg-ink-700'
             }`}
-            title={confirmDelete ? 'Click again to confirm' : 'Remove from directory'}
+            title={confirmDelete ? 'Permanently delete — cannot be undone' : 'Delete room from directory'}
           >
             <Trash2 size={13} />
           </button>
@@ -355,34 +355,18 @@ export default function Directory() {
     }
   }
 
-  function clearAll() {
-    if (!window.confirm(`Remove all ${rooms.length} rooms from your directory? This only affects this device.`)) return;
-    rooms.forEach((r) => !r.pinned && forgetRoom(r.roomId));
-    refresh();
-    notify('Unpinned rooms cleared.', 'success');
-  }
-
   return (
     <div className="min-h-screen bg-ink-950 text-mist-100">
       {/* Top bar */}
       <header className="sticky top-0 z-20 border-b border-ink-700 bg-ink-900/90 backdrop-blur px-4 py-3 flex items-center gap-3">
-        <Link
-          to="/"
-          className="flex items-center gap-1.5 text-mist-500 hover:text-mist-100 transition-colors shrink-0"
-        >
-          <ArrowLeft size={16} />
-          <span className="text-xs hidden sm:inline">Back</span>
-        </Link>
-
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <ShieldCheck size={16} className="text-signal-500 shrink-0" />
+          <BookMarked size={16} className="text-cipher-500 shrink-0" />
           <h1 className="font-display text-sm tracking-widest text-mist-100 truncate">
             ROOM DIRECTORY
           </h1>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0 text-[11px] text-mist-600">
-          <BookMarked size={13} className="text-cipher-500" />
           <span>{rooms.length} saved</span>
           {pinnedCount > 0 && <span>· {pinnedCount} pinned</span>}
         </div>
@@ -488,14 +472,7 @@ export default function Directory() {
                 : `${displayed.length} of ${rooms.length} rooms`}
               {filterPinned && ' · pinned only'}
             </span>
-            {rooms.filter((r) => !r.pinned).length > 0 && (
-              <button
-                onClick={clearAll}
-                className="text-danger/60 hover:text-danger transition-colors cursor-pointer"
-              >
-                Clear unpinned
-              </button>
-            )}
+            <span className="text-mist-800 italic">Rooms are kept forever</span>
           </div>
         )}
 

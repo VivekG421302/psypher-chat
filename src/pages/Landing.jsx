@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck, ArrowRight, KeySquare, Timer, Gamepad2,
-  Clock, Hash, Trash2, ChevronRight, RefreshCcw, AlertCircle, Pin, BookMarked,
+  Clock, Hash, ChevronRight, RefreshCcw, AlertCircle, Pin, BookMarked,
 } from 'lucide-react';
 import DecryptText from '../components/DecryptText.jsx';
 import Spinner from '../components/Spinner.jsx';
@@ -11,7 +11,7 @@ import { useProfile } from '../context/ProfileContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { api } from '../lib/api.js';
 import {
-  rememberRoom, listPastRooms, forgetRoom, getDeviceId, touchRoom,
+  rememberRoom, listPastRooms, getDeviceId, touchRoom,
 } from '../lib/storage.js';
 
 const FEATURES = [
@@ -33,10 +33,9 @@ function timeAgo(ts) {
 }
 
 /* ── Past rooms panel ───────────────────────────────────────────── */
-function PastRoomRow({ room, onRejoin, onRecreate, onRevoke }) {
+function PastRoomRow({ room, onRejoin, onRecreate }) {
   const [loading, setLoading] = useState(false);
   const [expired, setExpired] = useState(false);
-  const [confirmRevoke, setConfirmRevoke] = useState(false);
 
   async function handleClick() {
     if (loading) return;
@@ -53,16 +52,6 @@ function PastRoomRow({ room, onRejoin, onRecreate, onRevoke }) {
     const result = await onRecreate(room);
     setLoading(false);
     if (result.ok) setExpired(false);
-  }
-
-  function handleRevokeClick(e) {
-    e.stopPropagation();
-    if (confirmRevoke) {
-      onRevoke(room.roomId);
-    } else {
-      setConfirmRevoke(true);
-      setTimeout(() => setConfirmRevoke(false), 2500);
-    }
   }
 
   return (
@@ -99,17 +88,7 @@ function PastRoomRow({ room, onRejoin, onRecreate, onRevoke }) {
             ? <Spinner size={14} />
             : <ChevronRight size={13} className="text-mist-600 group-hover:text-mist-300 transition-colors" />
           }
-          <button
-            onClick={handleRevokeClick}
-            title={confirmRevoke ? 'Click again to confirm' : 'Revoke from history'}
-            className={`opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all cursor-pointer ${
-              confirmRevoke
-                ? 'opacity-100 bg-danger/20 text-danger'
-                : 'hover:bg-danger/20 text-danger/60 hover:text-danger'
-            }`}
-          >
-            <Trash2 size={11} />
-          </button>
+
         </div>
       </div>
 
@@ -146,11 +125,6 @@ function PastRooms({ onRejoin, onRecreate }) {
     setRooms(listPastRooms());
   }, []);
 
-  function revoke(roomId) {
-    forgetRoom(roomId);
-    setRooms(listPastRooms());
-  }
-
   if (rooms.length === 0) return null;
 
   return (
@@ -180,7 +154,6 @@ function PastRooms({ onRejoin, onRecreate }) {
               room={room}
               onRejoin={onRejoin}
               onRecreate={onRecreate}
-              onRevoke={revoke}
             />
           ))}
         </AnimatePresence>
