@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Check, LogOut, Gamepad2, ShieldCheck, Users, Pin, PinOff, MessageSquare, Edit3 } from 'lucide-react';
+import { Copy, Check, LogOut, Gamepad2, ShieldCheck, Users, Pin, PinOff, MessageSquare, Edit3, Bookmark } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext.jsx';
 import { useDirectory } from '../context/DirectoryContext.jsx';
