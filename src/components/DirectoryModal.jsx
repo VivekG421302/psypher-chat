@@ -284,17 +284,20 @@ export default function DirectoryModal() {
 
           {/* Panel */}
           <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0,  scale: 1 }}
-            exit={{ opacity: 0,  y: 16, scale: 0.97 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
-              w-[calc(100vw-32px)] max-w-[560px] max-h-[85vh]
-              flex flex-col
-              rounded-2xl
-              border border-ink-700/80
-              bg-ink-900
-              shadow-2xl overflow-hidden"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(calc(100vw - 32px), 560px)',
+              maxHeight: '85vh',
+              zIndex: 50,
+            }}
+            className="flex flex-col rounded-2xl border border-ink-700/80 bg-ink-900 shadow-2xl overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
