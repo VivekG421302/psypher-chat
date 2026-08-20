@@ -62,7 +62,7 @@ function JoinGate({ roomId, onJoined }) {
     try {
       setName(trimmed);
       const res = await api.joinRoom(roomId, { name: trimmed });
-      rememberRoom(roomId, { userId: res.userId, name: trimmed, label: roomId });
+      rememberRoom(roomId, { userId: res.userId, name: trimmed });
       onJoined({ userId: res.userId, name: trimmed, color: colorForName(trimmed) });
     } catch (err) {
       if (err.code === 'not_found') {
@@ -83,7 +83,7 @@ function JoinGate({ roomId, onJoined }) {
     try {
       setName(trimmed);
       const res = await api.createRoom(trimmed, null, roomId);
-      rememberRoom(res.roomId, { userId: res.userId, name: trimmed, label: `My room · ${res.roomId}` });
+      rememberRoom(res.roomId, { userId: res.userId, name: trimmed });
       notify('Room revived with the same code — share it with your friend again.', 'success');
       onJoined({ userId: res.userId, name: trimmed, color: colorForName(trimmed) });
     } catch (err) {
@@ -92,7 +92,7 @@ function JoinGate({ roomId, onJoined }) {
         setExpired(false);
         try {
           const res = await api.joinRoom(roomId, { name: trimmed });
-          rememberRoom(roomId, { userId: res.userId, name: trimmed, label: roomId });
+          rememberRoom(roomId, { userId: res.userId, name: trimmed });
           onJoined({ userId: res.userId, name: trimmed, color: colorForName(trimmed) });
         } catch (err2) {
           notify(err2.message || 'Could not join this room.', 'error');
@@ -398,7 +398,7 @@ export default function Room() {
             onClick={async () => {
               try {
                 const res = await api.createRoom(identity.name, null, roomId);
-                rememberRoom(res.roomId, { userId: res.userId, name: identity.name, label: `My room · ${res.roomId}` });
+                rememberRoom(res.roomId, { userId: res.userId, name: identity.name });
                 notify('Room revived with the same code.', 'success');
                 setIdentity({ userId: res.userId, name: identity.name, color: identity.color });
               } catch (err) {

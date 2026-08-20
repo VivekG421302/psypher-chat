@@ -240,7 +240,7 @@ export default function DirectoryModal() {
     if (recreate) {
       try {
         const res = await api.createRoom(name, null, room.roomId);
-        rememberRoom(res.roomId, { userId: res.userId, name, label: room.label });
+        rememberRoom(res.roomId, { userId: res.userId, name });
         notify('Room revived — share the code again.', 'success');
         closeDirectory();
         navigate(`/room/${res.roomId}`);
@@ -253,7 +253,7 @@ export default function DirectoryModal() {
     } else {
       try {
         const res = await api.joinRoom(room.roomId, { name, userId: room.userId });
-        rememberRoom(room.roomId, { userId: res.userId, name, label: room.label });
+        rememberRoom(room.roomId, { userId: res.userId, name });
         touchRoom(room.roomId);
         closeDirectory();
         navigate(`/room/${room.roomId}`);

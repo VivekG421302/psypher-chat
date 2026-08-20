@@ -103,17 +103,26 @@ export function rememberRoom(roomId, data) {
   const rooms    = loadRooms();
   const existing = rooms[roomId] ?? {};
 
+  // Strip undefined values from data so they don't overwrite existing fields
+  const cleanData = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
+
   const updated = {
     // Carry forward everything already stored
     ...existing,
-    // Merge in new data
-    ...data,
+    // Merge in new data (never overwrites with undefined)
+    ...cleanData,
     // roomId must always be present (needed by IDB keyPath)
     roomId,
     // joinedAt: set once, never overwritten
     joinedAt: existing.joinedAt ?? Date.now(),
     // lastActive: bump on every save
     lastActive: Date.now(),
+    // Preserve pinned — never let a join/update clear it
+    pinned: existing.pinned ?? cleanData.pinned ?? false,
+    // Preserve label — only set default on very first save
+    label: existing.label ?? cleanData.label ?? roomId,
   };
 
   rooms[roomId] = updated;
