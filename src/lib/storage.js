@@ -1,12 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// storage.js
-//
-// Two-layer persistence so rooms are never silently lost:
-//   1. localStorage  – fast, synchronous, primary read path
-//   2. IndexedDB     – backup; survives localStorage.clear()
-//
-// Rooms are NEVER auto-deleted. The only way to remove a room is an explicit
-// user action (forgetRoom). joinedAt is set once and never overwritten.
+// storage.js  —  rooms are PERMANENT; never auto-deleted
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PROFILE_KEY = 'psypher.profile';
@@ -18,12 +11,8 @@ export function loadProfile() {
   try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) ?? null; }
   catch { return null; }
 }
-export function saveProfile(p) {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
-}
-export function clearProfile() {
-  localStorage.removeItem(PROFILE_KEY);
-}
+export function saveProfile(p) { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); }
+export function clearProfile() { localStorage.removeItem(PROFILE_KEY); }
 
 // ── Device ID ─────────────────────────────────────────────────────────────────
 export function getDeviceId() {
@@ -32,7 +21,83 @@ export function getDeviceId() {
   return id;
 }
 
-// ── IndexedDB layer ───────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+export function loadRooms() {
+  try { return JSON.parse(localStorage.getItem(ROOMS_KEY)) ?? {}; }
+  catch { return {}; }
+}
+
+function saveRooms(rooms) {
+  localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
+}
+
+// ── Core ──────────────────────────────────────────────────────────────────────
+/**
+ * Upsert a room.  Existing pinned / label / joinedAt are NEVER overwritten.
+ * Only pass the fields that genuinely changed (e.g. { userId, name }).
+ */
+export function rememberRoom(roomId, data = {}) {
+  const rooms    = loadRooms();
+  const existing = rooms[roomId] ?? {};
+
+  // Only merge fields that are explicitly provided and not undefined
+  const patch = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (v !== undefined) patch[k] = v;
+  }
+
+  rooms[roomId] = {
+    ...existing,           // keep everything already stored
+    ...patch,              // apply only the new/changed fields
+    roomId,                // always present
+    joinedAt:   existing.joinedAt  ?? Date.now(),   // set once
+    lastActive: Date.now(),                          // always bump
+    pinned:     existing.pinned    ?? false,         // never clear
+    label:      existing.label     ?? patch.label ?? roomId, // never clear
+  };
+
+  saveRooms(rooms);
+  idbPut(rooms[roomId]);   // async backup
+  return rooms[roomId];
+}
+
+export function forgetRoom(roomId) {
+  const rooms = loadRooms();
+  delete rooms[roomId];
+  saveRooms(rooms);
+  idbDelete(roomId);
+}
+
+export function getRememberedRoom(roomId) {
+  return loadRooms()[roomId] ?? null;
+}
+
+export function touchRoom(roomId) {
+  const rooms = loadRooms();
+  if (!rooms[roomId]) return;
+  rooms[roomId].lastActive = Date.now();
+  saveRooms(rooms);
+  idbPut(rooms[roomId]);
+}
+
+export function updateRoomLabel(roomId, label) {
+  const rooms = loadRooms();
+  if (!rooms[roomId]) return;
+  rooms[roomId].label      = label;
+  rooms[roomId].lastActive = Date.now();
+  saveRooms(rooms);
+  idbPut(rooms[roomId]);
+}
+
+export function listPastRooms() {
+  return Object.values(loadRooms()).sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return  1;
+    return (b.lastActive ?? b.joinedAt ?? 0) - (a.lastActive ?? a.joinedAt ?? 0);
+  });
+}
+
+// ── IndexedDB backup ──────────────────────────────────────────────────────────
 const IDB_NAME    = 'psypher';
 const IDB_VERSION = 1;
 const IDB_STORE   = 'rooms';
@@ -40,9 +105,7 @@ const IDB_STORE   = 'rooms';
 function openIdb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, IDB_VERSION);
-    req.onupgradeneeded = (e) => {
-      e.target.result.createObjectStore(IDB_STORE, { keyPath: 'roomId' });
-    };
+    req.onupgradeneeded = (e) => e.target.result.createObjectStore(IDB_STORE, { keyPath: 'roomId' });
     req.onsuccess = () => resolve(req.result);
     req.onerror   = () => reject(req.error);
   });
@@ -50,18 +113,18 @@ function openIdb() {
 
 async function idbPut(record) {
   try {
-    const db   = await openIdb();
-    const tx   = db.transaction(IDB_STORE, 'readwrite');
+    const db = await openIdb();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
     tx.objectStore(IDB_STORE).put(record);
     await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
     db.close();
-  } catch { /* never throw – IDB is best-effort */ }
+  } catch { /* best-effort */ }
 }
 
 async function idbDelete(roomId) {
   try {
-    const db   = await openIdb();
-    const tx   = db.transaction(IDB_STORE, 'readwrite');
+    const db = await openIdb();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
     tx.objectStore(IDB_STORE).delete(roomId);
     await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
     db.close();
@@ -78,135 +141,30 @@ async function idbGetAll() {
       req.onerror   = () => rej(req.error);
     });
     db.close();
-    return rows; // [{ roomId, ...data }]
+    return rows;
   } catch { return []; }
 }
 
-// ── Core room helpers ─────────────────────────────────────────────────────────
-
-/** Read the localStorage snapshot (fast, sync). */
-export function loadRooms() {
-  try { return JSON.parse(localStorage.getItem(ROOMS_KEY)) ?? {}; }
-  catch { return {}; }
-}
-
 /**
- * Save or update a room entry.
- *
- * Rules:
- *  - joinedAt is set ONCE (on first save) and never overwritten.
- *  - Existing fields (pinned, label, etc.) are preserved if not explicitly
- *    provided in `data`.
- *  - Writes to both localStorage AND IndexedDB.
- */
-export function rememberRoom(roomId, data) {
-  const rooms    = loadRooms();
-  const existing = rooms[roomId] ?? {};
-
-  // Strip undefined values from data so they don't overwrite existing fields
-  const cleanData = Object.fromEntries(
-    Object.entries(data).filter(([, v]) => v !== undefined)
-  );
-
-  const updated = {
-    // Carry forward everything already stored
-    ...existing,
-    // Merge in new data (never overwrites with undefined)
-    ...cleanData,
-    // roomId must always be present (needed by IDB keyPath)
-    roomId,
-    // joinedAt: set once, never overwritten
-    joinedAt: existing.joinedAt ?? Date.now(),
-    // lastActive: bump on every save
-    lastActive: Date.now(),
-    // Preserve pinned — never let a join/update clear it
-    pinned: existing.pinned ?? cleanData.pinned ?? false,
-    // Preserve label — only set default on very first save
-    label: existing.label ?? cleanData.label ?? roomId,
-  };
-
-  rooms[roomId] = updated;
-  localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
-
-  // Async backup to IndexedDB — fire-and-forget
-  idbPut(updated);
-}
-
-/**
- * Permanently remove a room from both layers.
- * Only call this on explicit user intent (two-click confirm).
- */
-export function forgetRoom(roomId) {
-  const rooms = loadRooms();
-  delete rooms[roomId];
-  localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
-  idbDelete(roomId);
-}
-
-export function getRememberedRoom(roomId) {
-  return loadRooms()[roomId] ?? null;
-}
-
-export function touchRoom(roomId) {
-  const rooms = loadRooms();
-  if (!rooms[roomId]) return;
-  rooms[roomId].lastActive = Date.now();
-  localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
-  idbPut(rooms[roomId]);
-}
-
-export function updateRoomLabel(roomId, label) {
-  const rooms = loadRooms();
-  if (!rooms[roomId]) return;
-  rooms[roomId].label      = label;
-  rooms[roomId].lastActive = Date.now();
-  localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
-  idbPut(rooms[roomId]);
-}
-
-/**
- * Restore from IndexedDB into localStorage.
- * Call once on app startup. Returns the merged room map.
+ * Called once on app start. Merges IDB → localStorage and back-fills IDB
+ * with any LS-only rooms so both layers stay in sync.
  */
 export async function syncFromIdb() {
-  const idbRows = await idbGetAll();
-  const lsRooms = loadRooms();
-  let changed   = false;
+  const [idbRows, lsRooms] = await Promise.all([idbGetAll(), Promise.resolve(loadRooms())]);
+  let changed = false;
 
-  // Merge IDB rows into localStorage (IDB wins if newer or LS is missing it)
   for (const row of idbRows) {
-    const { roomId } = row;
-    const existing   = lsRooms[roomId];
-    if (!existing || (row.lastActive ?? 0) > (existing.lastActive ?? 0)) {
-      lsRooms[roomId] = row;
+    const ex = lsRooms[row.roomId];
+    if (!ex || (row.lastActive ?? 0) > (ex.lastActive ?? 0)) {
+      lsRooms[row.roomId] = row;
       changed = true;
     }
   }
+  if (changed) saveRooms(lsRooms);
 
-  if (changed) {
-    localStorage.setItem(ROOMS_KEY, JSON.stringify(lsRooms));
-  }
-
-  // Back-fill IDB with any LS-only rooms so both layers are always in sync
-  const idbIds = new Set(idbRows.map(r => r.roomId));
+  // Back-fill IDB with LS-only entries
+  const idbSet = new Set(idbRows.map(r => r.roomId));
   for (const room of Object.values(lsRooms)) {
-    if (!idbIds.has(room.roomId)) {
-      idbPut(room); // fire-and-forget
-    }
+    if (!idbSet.has(room.roomId)) idbPut(room);
   }
-
-  return lsRooms;
-}
-
-/**
- * Sorted list for the directory.
- * pinned rooms always float to top, then by lastActive desc.
- */
-export function listPastRooms() {
-  const rooms = loadRooms();
-  return Object.values(rooms).sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1;
-    if (!a.pinned && b.pinned) return  1;
-    return (b.lastActive ?? b.joinedAt ?? 0) - (a.lastActive ?? a.joinedAt ?? 0);
-  });
 }

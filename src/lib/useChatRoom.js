@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSocket } from './socket.js';
 import { encryptText, decryptText } from './crypto.js';
-import { getRememberedRoom, rememberRoom, forgetRoom } from './storage.js';
+import { getRememberedRoom, rememberRoom } from './storage.js';
 
 export function useChatRoom(roomId, identity) {
   const [status, setStatus] = useState('connecting'); // connecting | joined | full | not_found
@@ -196,16 +196,23 @@ export function useChatRoom(roomId, identity) {
   );
 
   const leaveRoom = useCallback(() => {
+    // Only disconnect — never delete the room from storage.
+    // Rooms persist forever; the user can rejoin from the directory.
     socketRef.current?.emit('room:leave');
-    forgetRoom(roomId);
   }, [roomId]);
 
   // Push a client-only "system" line into the message list — never sent to
   // the server or the other member (they get their own local notice from
   // their own socket events). Used for things like game-start invitations
   // that should show up even if the games panel is closed.
-  const notifyLocal = useCallback((text) => {
-    setMessages((prev) => [...prev, { id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, kind: 'system', text, ts: Date.now() }]);
+  const notifyLocal = useCallback((text, extraFields = {}) => {
+    setMessages((prev) => [...prev, {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      kind: 'system',
+      text,
+      ts: Date.now(),
+      ...extraFields,
+    }]);
   }, []);
 
   return {

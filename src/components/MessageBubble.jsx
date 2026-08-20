@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Pencil, Trash2, Copy, Smile, Check, CheckSquare } from 'lucide-react';
+import { Pencil, Trash2, Copy, Smile, Check, CheckSquare, Gamepad2, Trophy } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import QuickReactBar from './QuickReactBar.jsx';
 import { useLongPress } from '../lib/useLongPress.js';
@@ -54,6 +54,7 @@ export default function MessageBubble({
   onDelete,
   onReact,
   onCopy,
+  onJoinGame,
 }) {
   const [showActions, setShowActions] = useState(false);
   const [showReactBar, setShowReactBar] = useState(false);
@@ -62,6 +63,48 @@ export default function MessageBubble({
   const longPress = useLongPress(() => {
     if (!selectMode) setShowActions(true);
   });
+
+  if (m.kind === 'game-invite') {
+    return (
+      <div className="flex justify-center px-2">
+        <div className="w-full max-w-xs rounded-2xl border border-cipher-700/50 bg-cipher-950/30 overflow-hidden">
+          <div className="flex items-center gap-2.5 px-3.5 py-3">
+            <div className="w-8 h-8 rounded-xl bg-cipher-700/20 border border-cipher-700/40 flex items-center justify-center shrink-0">
+              <Gamepad2 size={15} className="text-cipher-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-mist-100">{m.starterName} started {m.gameId}</p>
+              <p className="text-[10px] text-mist-600 mt-0.5">Tap to join the game</p>
+            </div>
+            <button
+              onClick={() => onJoinGame?.(m.gameId)}
+              className="shrink-0 rounded-xl bg-cipher-500 hover:bg-cipher-400 text-ink-950 text-[11px] font-bold px-3 py-1.5 transition-colors cursor-pointer"
+            >
+              Join
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (m.kind === 'game-result') {
+    return (
+      <div className="flex justify-center px-2">
+        <div className="w-full max-w-xs rounded-2xl border border-signal-700/40 bg-signal-950/20 overflow-hidden">
+          <div className="flex items-center gap-2.5 px-3.5 py-3">
+            <div className="w-8 h-8 rounded-xl bg-signal-700/20 border border-signal-700/40 flex items-center justify-center shrink-0">
+              <Trophy size={15} className="text-signal-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-signal-300">{m.winnerName} won!</p>
+              {m.loserName && <p className="text-[10px] text-mist-600 mt-0.5">{m.gameId} · vs {m.loserName}</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (m.kind === 'system') {
     return (

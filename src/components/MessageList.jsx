@@ -15,6 +15,7 @@ export default function MessageList({
   onDelete,
   onReact,
   onCopy,
+  onJoinGame,
 }) {
   const bottomRef = useRef(null);
 
@@ -58,6 +59,7 @@ export default function MessageList({
               onDelete={onDelete}
               onReact={onReact}
               onCopy={onCopy}
+              onJoinGame={onJoinGame}
             />
           </motion.div>
         ))}

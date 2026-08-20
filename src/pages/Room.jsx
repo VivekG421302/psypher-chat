@@ -269,33 +269,56 @@ export default function Room() {
     return () => window.removeEventListener('keydown', onKey);
   }, [gamesOpen, gameListFocus]);
 
-  // ── Green-dot game invite: works regardless of whether the games panel
-  // is open, since (unlike before) this listener lives at Room level and
-  // is always mounted for the lifetime of the room. ──
+  // ── Game invite cards in chat ──────────────────────────────────────────────
   useEffect(() => {
     const socket = chat.socket?.current;
     if (!socket || !identity) return undefined;
 
-    function onGameStarted({ gameId, startedBy }) {
+    function onGameStarted({ gameId, startedBy, starterName }) {
       if (startedBy === identity.userId) return; // it was us
       setOpponentGame({ gameId });
       setOpponentGameUnseen(true);
       if (notifiedGameRef.current !== gameId) {
         notifiedGameRef.current = gameId;
         const starter = chat.members.find((m) => m.userId === startedBy);
-        chat.notifyLocal(`${starter?.name || 'Your partner'} started a game — open Minigames to join!`);
+        const name = starter?.name || starterName || 'Your partner';
+        // Inject a rich game-invite card into the chat stream
+        chat.notifyLocal(`${name} started ${gameId}`, {
+          kind: 'game-invite',
+          gameId,
+          starterName: name,
+        });
       }
     }
-    function onGameEnded() {
+    function onGameEnded({ gameId, winnerName, loserName } = {}) {
       setOpponentGame(null);
       notifiedGameRef.current = null;
+      if (winnerName) {
+        chat.notifyLocal(`${winnerName} won the ${gameId || 'game'} against ${loserName || 'opponent'}`, {
+          kind: 'game-result',
+          winnerName,
+          loserName,
+          gameId,
+        });
+      }
+    }
+    // Also listen for game-result broadcast from backend
+    function onGameResult({ gameId, winnerName, loserName } = {}) {
+      chat.notifyLocal(`🏆 ${winnerName} won ${gameId || 'the game'}${loserName ? ` against ${loserName}` : ''}`, {
+        kind: 'game-result',
+        winnerName,
+        loserName,
+        gameId,
+      });
     }
 
     socket.on('game:started', onGameStarted);
     socket.on('game:ended', onGameEnded);
+    socket.on('game:result', onGameResult);
     return () => {
       socket.off('game:started', onGameStarted);
       socket.off('game:ended', onGameEnded);
+      socket.off('game:result', onGameResult);
     };
   }, [chat.socket, chat.members, chat.notifyLocal, identity]);
 
@@ -339,6 +362,14 @@ export default function Room() {
   }, []);
 
   const cancelSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  // Called when user taps "Join" on a game-invite card in chat
+  const joinGameFromChat = useCallback((gameId) => {
+    setGamesOpen(true);
+    setMobileView('game');
+    // GamesDrawer listens for this event to set its activeGameId
+    window.dispatchEvent(new CustomEvent('psypher:join-game', { detail: { gameId } }));
+  }, []);
 
   const selectAll = useCallback(() => {
     const allIds = selectableMessages.map((m) => m.id);
@@ -458,6 +489,7 @@ export default function Room() {
         onDelete={(id) => chat.deleteMessage(id)}
         onReact={(id, emoji) => chat.reactToMessage(id, emoji)}
         onCopy={copyText}
+        onJoinGame={joinGameFromChat}
       />
       {!chat.connected && (
         <div className="px-4 py-2 bg-danger/10 border-t border-danger/30 text-danger text-xs text-center shrink-0">
