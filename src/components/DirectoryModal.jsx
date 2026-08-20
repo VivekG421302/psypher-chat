@@ -282,24 +282,32 @@ export default function DirectoryModal() {
             onClick={closeDirectory}
           />
 
-          {/* Panel */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          {/* Centering shell — pure CSS, Framer never touches this */}
+          <div
             style={{
               position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 'min(calc(100vw - 32px), 560px)',
-              maxHeight: '85vh',
+              inset: 0,
               zIndex: 50,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
             }}
-            className="flex flex-col rounded-2xl border border-ink-700/80 bg-ink-900 shadow-2xl overflow-hidden"
-            onClick={e => e.stopPropagation()}
           >
+            {/* Panel — Framer only animates opacity/scale here */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              style={{
+                width: 'min(calc(100vw - 32px), 560px)',
+                maxHeight: '85vh',
+                pointerEvents: 'auto',
+              }}
+              className="flex flex-col rounded-2xl border border-ink-700/80 bg-ink-900 shadow-2xl overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
             {/* Header */}
             <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-ink-700/60 shrink-0">
               <Bookmark size={16} className="text-cipher-500 shrink-0" />
@@ -405,6 +413,7 @@ export default function DirectoryModal() {
 
 
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>
