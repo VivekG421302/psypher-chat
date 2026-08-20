@@ -268,46 +268,39 @@ export default function DirectoryModal() {
 
   const pinnedCount = rooms.filter(r => r.pinned).length;
 
-  return (
-    <AnimatePresence>
-      {open && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="fixed inset-0 z-50 bg-ink-950/80 backdrop-blur-sm"
-            onClick={closeDirectory}
-          />
+  if (!open) return null;
 
-          {/* Centering shell — pure CSS, Framer never touches this */}
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 50,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-            }}
-          >
-            {/* Panel — Framer only animates opacity/scale here */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              style={{
-                width: 'min(calc(100vw - 32px), 560px)',
-                maxHeight: '85vh',
-                pointerEvents: 'auto',
-              }}
-              className="flex flex-col rounded-2xl border border-ink-700/80 bg-ink-900 shadow-2xl overflow-hidden"
-              onClick={e => e.stopPropagation()}
-            >
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-ink-950/80 backdrop-blur-sm"
+        style={{ zIndex: 998 }}
+        onClick={closeDirectory}
+      />
+
+      {/* Centering shell — owns all the layout; no animation here */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+        }}
+      >
+        {/* Panel */}
+        <div
+          style={{
+            width: 'min(calc(100vw - 32px), 560px)',
+            maxHeight: '85vh',
+            pointerEvents: 'auto',
+          }}
+          className="flex flex-col rounded-2xl border border-ink-700/80 bg-ink-900 shadow-2xl overflow-hidden"
+          onClick={e => e.stopPropagation()}
+        >
             {/* Header */}
             <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-ink-700/60 shrink-0">
               <Bookmark size={16} className="text-cipher-500 shrink-0" />
@@ -410,12 +403,8 @@ export default function DirectoryModal() {
                 }
               </AnimatePresence>
             </div>
-
-
-          </motion.div>
-          </div>
-        </>
-      )}
-    </AnimatePresence>
+        </div>
+      </div>
+    </>
   );
 }

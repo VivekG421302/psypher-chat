@@ -169,27 +169,30 @@ export function updateRoomLabel(roomId, label) {
  * Call once on app startup. Returns the merged room map.
  */
 export async function syncFromIdb() {
-  const idbRows  = await idbGetAll();
-  if (!idbRows.length) return loadRooms();
+  const idbRows = await idbGetAll();
+  const lsRooms = loadRooms();
+  let changed   = false;
 
-  const lsRooms  = loadRooms();
-  let changed    = false;
-
+  // Merge IDB rows into localStorage (IDB wins if newer or LS is missing it)
   for (const row of idbRows) {
-    const { roomId, ...rest } = row;
-    const existing = lsRooms[roomId];
-    // IDB wins if: entry is missing from LS, or IDB has a newer lastActive
-    if (
-      !existing ||
-      (rest.lastActive ?? 0) > (existing.lastActive ?? 0)
-    ) {
-      lsRooms[roomId] = { roomId, ...rest };
+    const { roomId } = row;
+    const existing   = lsRooms[roomId];
+    if (!existing || (row.lastActive ?? 0) > (existing.lastActive ?? 0)) {
+      lsRooms[roomId] = row;
       changed = true;
     }
   }
 
   if (changed) {
     localStorage.setItem(ROOMS_KEY, JSON.stringify(lsRooms));
+  }
+
+  // Back-fill IDB with any LS-only rooms so both layers are always in sync
+  const idbIds = new Set(idbRows.map(r => r.roomId));
+  for (const room of Object.values(lsRooms)) {
+    if (!idbIds.has(room.roomId)) {
+      idbPut(room); // fire-and-forget
+    }
   }
 
   return lsRooms;

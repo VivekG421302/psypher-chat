@@ -194,6 +194,7 @@ export default function UnoGame({ roomId, connected, onClose, chat }) {
   const [layout, setLayout]             = useState('row');  // 'row' | 'grid'
   const [showEmoji, setShowEmoji]       = useState(false);
   const [chatBubbles, setChatBubbles]   = useState([]);
+  const [catchCooldown, setCatchCooldown] = useState(false);
   const lastSeenColorSeq = useRef(0);
   const lastSeenMsgId    = useRef(null);
 
@@ -428,9 +429,22 @@ export default function UnoGame({ roomId, connected, onClose, chat }) {
               className="text-[11px] rounded-lg border border-signal-500/50 px-2.5 py-1 text-signal-500 hover:bg-signal-700/10 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer transition-colors">
               UNO!
             </button>
-            <button onClick={catchUno} disabled={!!state.winner}
-              className="text-[11px] rounded-lg border border-danger/40 px-2.5 py-1 text-danger/80 hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer transition-colors">
-              Catch
+            <button
+              onClick={() => {
+                if (catchCooldown || state.winner) return;
+                catchUno();
+                setCatchCooldown(true);
+                setTimeout(() => setCatchCooldown(false), 2000);
+              }}
+              disabled={!!state.winner || catchCooldown}
+              className="text-[11px] rounded-lg border border-danger/40 px-2.5 py-1 text-danger/80 hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer transition-colors relative overflow-hidden"
+            >
+              {catchCooldown ? (
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 border border-danger/60 border-t-transparent rounded-full animate-spin" />
+                  Wait…
+                </span>
+              ) : 'Catch'}
             </button>
           </div>
         </div>
