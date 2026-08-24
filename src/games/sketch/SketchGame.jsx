@@ -144,6 +144,7 @@ export default function SketchGame({ roomId, identity, connected, chat }) {
   const [showRules, setShowRules] = useState(false);
   const [showConcede, setShowConcede] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showFillPalette, setShowFillPalette] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [color, setColor] = useState(COLORS[0]);
   const [brushSize, setBrushSize] = useState(SIZES[1].value);
