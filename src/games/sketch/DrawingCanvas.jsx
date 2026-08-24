@@ -30,6 +30,10 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
     isFirstFlush.current = true;
   }, [roundKey]);
 
+  // Keep a stable ref to redraw so the resize observer always calls
+  // the latest version without needing to re-run the resize effect.
+  const redrawRef = useRef(null);
+
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -51,7 +55,6 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
       ctx.beginPath();
       ctx.moveTo(pts[0].x * LOGICAL_W, pts[0].y * LOGICAL_H);
       if (pts.length === 1) {
-        // A tap with no movement — draw a dot.
         ctx.lineTo(pts[0].x * LOGICAL_W + 0.01, pts[0].y * LOGICAL_H + 0.01);
       } else {
         for (let i = 1; i < pts.length; i++) {
@@ -61,6 +64,9 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
       ctx.stroke();
     }
   }, [renderStrokes, bgColor]);
+
+  // Keep ref in sync so resize observer always uses latest redraw
+  redrawRef.current = redraw;
 
   // Size the backing buffer for device pixel ratio, keep CSS size responsive.
   useEffect(() => {
@@ -78,7 +84,7 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
       canvas.height = LOGICAL_H * dpr;
       const ctx = canvas.getContext('2d');
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      redraw();
+      redrawRef.current?.();
     }
 
     resize();
@@ -157,7 +163,7 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
   }
 
   return (
-    <div ref={wrapRef} className="w-full rounded-xl overflow-hidden border-2 border-ink-600 bg-white shadow-inner shrink-0">
+    <div ref={wrapRef} className="w-full rounded-xl overflow-hidden border-2 border-ink-600 shadow-inner shrink-0" style={{ background: bgColor || '#ffffff' }}>
       <canvas
         ref={canvasRef}
         onPointerDown={handlePointerDown}
