@@ -7,7 +7,7 @@ const LOGICAL_W = 800;
 const LOGICAL_H = 600;
 const FLUSH_MS = 45; // how often buffered points are sent to the server
 
-export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey, onStroke }) {
+export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey, onStroke, bgColor }) {
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
   const [renderStrokes, setRenderStrokes] = useState(strokes || []);
@@ -28,7 +28,7 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
     setRenderStrokes([]);
     pendingBuffer.current = [];
     isFirstFlush.current = true;
-  }, [roundKey]);
+  }, [roundKey, bgColor]);
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -38,7 +38,7 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = bgColor || '#ffffff';
     ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
     for (const stroke of renderStrokes) {

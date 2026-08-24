@@ -76,6 +76,7 @@ export function useSketch(roomId, ready) {
     drawStroke: (points, color, size, newStroke) => act('draw_stroke', { points, color, size, newStroke }),
     clearCanvas: () => act('clear_canvas'),
     undoStroke: () => act('undo_stroke'),
+    fillBackground: (color) => act('fill_background', { color }),
     guess: (text) => act('guess', { text }),
     skipRound: () => act('skip_round'),
     timeUp: () => act('time_up'),

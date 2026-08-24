@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   RotateCcw, AlertTriangle, BookOpen, X, MessageSquare, Send, Flag, Smile, Sparkles,
-  Eraser, Undo2, Pencil, Check, Flame, Clock, SkipForward,
+  Eraser, Undo2, Pencil, Check, Flame, Clock, SkipForward, PaintBucket,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSketch } from './useSketch.js';
@@ -138,7 +138,7 @@ function CountdownBar({ remainingMs, totalMs, urgent }) {
 export default function SketchGame({ roomId, identity, connected, chat }) {
   const {
     state, waiting, error,
-    chooseWord, drawStroke, clearCanvas, undoStroke, guess, skipRound, timeUp, nextRound, restart,
+    chooseWord, drawStroke, clearCanvas, undoStroke, fillBackground, guess, skipRound, timeUp, nextRound, restart,
   } = useSketch(roomId, connected);
 
   const [showRules, setShowRules] = useState(false);
@@ -350,6 +350,31 @@ export default function SketchGame({ roomId, identity, connected, chat }) {
                     className="w-7 h-7 rounded-lg border border-ink-600 text-mist-400 hover:text-danger flex items-center justify-center cursor-pointer transition-colors">
                     <Eraser size={13} />
                   </button>
+                  {/* Fill bucket */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowFillPalette(v => !v)}
+                      title="Fill background"
+                      className={`w-7 h-7 rounded-lg border flex items-center justify-center cursor-pointer transition-colors ${
+                        showFillPalette ? 'border-cipher-500 text-cipher-500 bg-cipher-700/10' : 'border-ink-600 text-mist-400 hover:text-mist-100'
+                      }`}
+                    >
+                      <PaintBucket size={13} />
+                    </button>
+                    {showFillPalette && (
+                      <div className="absolute bottom-full mb-1 left-0 z-30 bg-ink-800 border border-ink-600 rounded-xl p-2 flex flex-wrap gap-1.5 w-[120px] shadow-xl">
+                        {['#FFFFFF', '#FFF9C4', '#FFCCBC', '#C8E6C9', '#BBDEFB', '#E1BEE7', '#D7CCC8', '#1A1A1A'].map(bg => (
+                          <button
+                            key={bg}
+                            onClick={() => { fillBackground(bg); setShowFillPalette(false); }}
+                            className="w-8 h-8 rounded-lg border-2 border-ink-600 hover:border-signal-500 cursor-pointer transition-colors"
+                            style={{ background: bg }}
+                            title={bg}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -361,6 +386,7 @@ export default function SketchGame({ roomId, identity, connected, chat }) {
               size={brushSize}
               roundKey={state.round}
               onStroke={drawStroke}
+              bgColor={state.bgColor}
             />
 
             {isDrawer && (
@@ -426,7 +452,7 @@ export default function SketchGame({ roomId, identity, connected, chat }) {
                 Next round
               </button>
             </div>
-            <DrawingCanvas strokes={state.strokes} isDrawer={false} roundKey={`end-${state.round}`} />
+            <DrawingCanvas strokes={state.strokes} isDrawer={false} roundKey={`end-${state.round}`} bgColor={state.bgColor} />
           </div>
         )}
 
