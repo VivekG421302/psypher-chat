@@ -356,9 +356,7 @@ export default function SketchGame({ roomId, identity, connected, chat }) {
                     <button
                       onClick={() => setShowFillPalette(v => !v)}
                       title="Fill background"
-                      className={`w-7 h-7 rounded-lg border flex items-center justify-center cursor-pointer transition-colors ${
-                        showFillPalette ? 'border-cipher-500 text-cipher-500 bg-cipher-700/10' : 'border-ink-600 text-mist-400 hover:text-mist-100'
-                      }`}
+                      className={`w-7 h-7 rounded-lg border flex items-center justify-center cursor-pointer transition-colors ${showFillPalette ? 'border-cipher-500 text-cipher-500 bg-cipher-700/10' : 'border-ink-600 text-mist-400 hover:text-mist-100'}`}
                     >
                       <PaintBucket size={13} />
                     </button>
@@ -366,29 +364,16 @@ export default function SketchGame({ roomId, identity, connected, chat }) {
                       <div className="absolute bottom-full mb-1 left-0 z-30 bg-ink-800 border border-ink-600 rounded-xl p-2 shadow-xl" style={{width:'152px'}}>
                         <p className="text-[9px] text-mist-600 uppercase tracking-wider mb-1.5 px-0.5">Fill background</p>
                         <div className="flex flex-wrap gap-1.5">
-                          {[
-                            ['#FFFFFF','White'],['#FFF9C4','Yellow'],['#FFCCBC','Peach'],
-                            ['#C8E6C9','Green'],['#BBDEFB','Blue'],['#E1BEE7','Purple'],
-                            ['#D7CCC8','Brown'],['#1A1A1A','Black'],['#FFD6E0','Pink'],['#E0F7FA','Cyan'],
-                          ].map(([bg, label]) => (
-                            <button
-                              key={bg}
-                              onClick={() => { fillBackground(bg); setShowFillPalette(false); }}
-                              className={`w-9 h-9 rounded-lg border-2 hover:border-signal-500 cursor-pointer transition-all ${state.bgColor === bg ? 'border-signal-500 scale-110' : 'border-ink-500'}`}
-                              style={{ background: bg }}
-                              title={label}
-                            />
+                          {[['#FFFFFF','White'],['#FFF9C4','Yellow'],['#FFCCBC','Peach'],['#C8E6C9','Green'],['#BBDEFB','Blue'],['#E1BEE7','Purple'],['#D7CCC8','Brown'],['#1A1A1A','Black'],['#FFD6E0','Pink'],['#E0F7FA','Cyan']].map(([bg,label]) => (
+                            <button key={bg} onClick={() => { fillBackground(bg); setShowFillPalette(false); }} className={`w-9 h-9 rounded-lg border-2 hover:border-signal-500 cursor-pointer transition-all ${state.bgColor === bg ? 'border-signal-500 scale-110' : 'border-ink-500'}`} style={{background:bg}} title={label} />
                           ))}
                         </div>
                         {state.bgColor && state.bgColor !== '#FFFFFF' && (
-                          <button onClick={() => { fillBackground('#FFFFFF'); setShowFillPalette(false); }}
-                            className="mt-2 w-full text-[10px] text-mist-500 hover:text-danger text-center cursor-pointer">
-                            ✕ Clear fill
-                          </button>
+                          <button onClick={() => { fillBackground('#FFFFFF'); setShowFillPalette(false); }} className="mt-2 w-full text-[10px] text-mist-500 hover:text-danger text-center cursor-pointer">✕ Clear fill</button>
                         )}
                       </div>
                     )}
-                </div>
+                  </div>
               </div>
             )}
 
