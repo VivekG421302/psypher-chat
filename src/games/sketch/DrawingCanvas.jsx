@@ -28,7 +28,7 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
     setRenderStrokes([]);
     pendingBuffer.current = [];
     isFirstFlush.current = true;
-  }, [roundKey, bgColor]);
+  }, [roundKey]);
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -60,7 +60,7 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
       }
       ctx.stroke();
     }
-  }, [renderStrokes]);
+  }, [renderStrokes, bgColor]);
 
   // Size the backing buffer for device pixel ratio, keep CSS size responsive.
   useEffect(() => {
