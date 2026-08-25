@@ -132,7 +132,7 @@ function RoomRow({ room, onUpdate, onForget, onJoin }) {
         </div>
 
         {/* Actions — always visible on mobile, hover on desktop */}
-        <div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 shrink-0">
           <button onClick={e => { e.stopPropagation(); setRenaming(true); }} className="p-1.5 rounded-lg text-mist-700 hover:text-mist-200 hover:bg-ink-700 transition-colors cursor-pointer" title="Rename"><Edit3 size={12} /></button>
           <button onClick={togglePin} className={`p-1.5 rounded-lg transition-colors cursor-pointer ${room.pinned ? 'text-cipher-500 hover:text-cipher-300' : 'text-mist-700 hover:text-cipher-500'} hover:bg-ink-700`} title={room.pinned ? 'Unpin' : 'Pin'}>{room.pinned ? <Pin size={12} /> : <PinOff size={12} />}</button>
           <button onClick={handleDelete} className={`p-1.5 rounded-lg transition-colors cursor-pointer hover:bg-ink-700 ${confirmDel ? 'text-danger' : 'text-mist-700 hover:text-danger'}`} title={confirmDel ? 'Click again to confirm delete' : 'Delete'}><Trash2 size={12} /></button>
@@ -193,9 +193,12 @@ export default function DirectoryModal() {
 
   useEffect(() => {
     if (open) {
-      refresh();
+      // Sync IDB → localStorage first so newly-joined rooms appear
+      import('../lib/storage.js').then(({ syncFromIdb }) => {
+        syncFromIdb().then(() => refresh());
+      });
+      refresh(); // immediate show with what we have now
       setTimeout(() => searchRef.current?.focus(), 80);
-      // Lock background scroll
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';

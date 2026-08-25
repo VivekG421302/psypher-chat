@@ -115,10 +115,12 @@ async function idbPut(record) {
   try {
     const db = await openIdb();
     const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put(record);
+    tx.objectStore(IDB_STORE).put({ ...record }); // shallow clone to avoid proxy issues
     await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
     db.close();
-  } catch { /* best-effort */ }
+  } catch (e) {
+    console.warn('[psypher/storage] IDB write failed:', e);
+  }
 }
 
 async function idbDelete(roomId) {

@@ -528,7 +528,7 @@ export default function Room() {
         roomId={roomId}
         members={chat.members}
         onLeave={chat.leaveRoom}
-        onToggleGames={() => setGamesOpen((v) => !v)}
+        onToggleGames={() => setGamesOpen((v) => { const next = !v; if (next) setMobileView('game'); return next; })}
         gamesOpen={gamesOpen}
         mobileView={mobileView}
         setMobileView={setMobileView}
