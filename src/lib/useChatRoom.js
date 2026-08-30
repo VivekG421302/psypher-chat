@@ -15,6 +15,8 @@ export function useChatRoom(roomId, identity) {
 
   useEffect(() => {
     if (!roomId || !identity?.userId) return undefined;
+    // Create a fresh socket for this room session. Each mount gets its own
+    // connection so two players in the same browser never share a socket.
     const socket = getSocket();
     socketRef.current = socket;
 
@@ -146,6 +148,9 @@ export function useChatRoom(roomId, identity) {
       socket.off('connect', join);
       socket.off('disconnect', onDisconnect);
       if (typingTimeout.current) clearTimeout(typingTimeout.current);
+      // Disconnect and destroy this socket — the next mount will create a new one
+      socket.disconnect();
+      socketRef.current = null;
     };
   }, [roomId, identity?.userId, identity?.name, identity?.color]);
 
