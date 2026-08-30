@@ -182,7 +182,7 @@ function SurrenderModal({ onConfirm, onCancel }) {
 
 /* ─── Main ───────────────────────────────────────────────────────── */
 export default function UnoGame({ roomId, connected, onClose, chat }) {
-  const { state, waiting, error, playCard, drawCard, callUno, catchUno, passTurn, restart } = useUno(roomId, connected);
+  const { state, waiting, error, playCard, drawCard, callUno, catchUno, passTurn, restart } = useUno(roomId, connected, chat.socket);
 
   const [pendingWild, setPendingWild]   = useState(null);
   const [colorBanner, setColorBanner]   = useState(null);

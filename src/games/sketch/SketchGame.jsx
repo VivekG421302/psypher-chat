@@ -139,7 +139,7 @@ export default function SketchGame({ roomId, identity, connected, chat }) {
   const {
     state, waiting, error,
     chooseWord, drawStroke, clearCanvas, undoStroke, fillBackground, guess, skipRound, timeUp, nextRound, restart,
-  } = useSketch(roomId, connected);
+  } = useSketch(roomId, connected, chat.socket);
 
   const [showRules, setShowRules] = useState(false);
   const [showConcede, setShowConcede] = useState(false);

@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getSocket } from '../../lib/socket.js';
 
 const GAME_ID = 'guesswho';
 
-export function useGuessWho(roomId, ready) {
+export function useGuessWho(roomId, ready, socketRef) {
   const [state, setState] = useState(null);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState(null);
@@ -17,7 +16,8 @@ export function useGuessWho(roomId, ready) {
 
   useEffect(() => {
     if (!roomId || !ready) return undefined;
-    const socket = getSocket();
+    const socket = socketRef?.current;
+    if (!socket) return undefined;
 
     function onState(payload) {
       if (payload.gameId !== GAME_ID) return;
@@ -52,13 +52,13 @@ export function useGuessWho(roomId, ready) {
       socket.off('game:error', onError);
       socket.off('game:reset', onReset);
     };
-  }, [roomId, ready]);
+  }, [roomId, ready, socketRef]);
 
   const act = useCallback(
     (action, payload = {}) => {
-      getSocket().emit('game:action', { roomId, gameId: GAME_ID, action, payload });
+      socketRef?.current?.emit('game:action', { roomId, gameId: GAME_ID, action, payload });
     },
-    [roomId]
+    [roomId, socketRef]
   );
 
   return {

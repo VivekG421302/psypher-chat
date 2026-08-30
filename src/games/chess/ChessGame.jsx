@@ -326,7 +326,7 @@ function clientLegalMoves(board, r, c, castling, enPassant) {
 
 // ─── Main component ─────────────────────────────────────────────
 export default function ChessGame({ roomId, identity, connected, chat }) {
-  const { state, waiting, error, move, promote, offerDraw, acceptDraw, resign, restart } = useChess(roomId, connected);
+  const { state, waiting, error, move, promote, offerDraw, acceptDraw, resign, restart } = useChess(roomId, connected, chat.socket);
 
   const [selected, setSelected]       = useState(null); // [r, c]
   const [legalTargets, setLegalTargets] = useState([]);

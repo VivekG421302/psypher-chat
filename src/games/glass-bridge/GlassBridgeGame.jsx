@@ -195,7 +195,7 @@ function PlayerDot({ pid, state }) {
 
 /* ── Main ───────────────────────────────────────────────────────── */
 export default function GlassBridgeGame({ roomId, connected, chat }) {
-  const { state, waiting, error, step, restart } = useGlassBridge(roomId, connected);
+  const { state, waiting, error, step, restart } = useGlassBridge(roomId, connected, chat.socket);
   const [showRules, setShowRules]           = useState(false);
   const [showSurrender, setShowSurrender]   = useState(false);
   const [showEmoji, setShowEmoji]           = useState(false);

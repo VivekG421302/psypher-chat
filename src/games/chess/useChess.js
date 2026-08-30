@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getSocket } from '../../lib/socket.js';
 
 const GAME_ID = 'chess';
 
-export function useChess(roomId, ready) {
+export function useChess(roomId, ready, socketRef) {
   const [state, setState]     = useState(null);
   const [waiting, setWaiting] = useState(false);
   const [error, setError]     = useState(null);
@@ -14,7 +13,8 @@ export function useChess(roomId, ready) {
 
   useEffect(() => {
     if (!roomId || !ready) return;
-    const socket = getSocket();
+    const socket = socketRef?.current;
+    if (!socket) return undefined;
 
     const onState   = p => { if (p.gameId !== GAME_ID) return; setWaiting(false); setState(p.state); };
     const onWaiting = p => { if (p.gameId !== GAME_ID) return; setWaiting(true); };
@@ -33,11 +33,11 @@ export function useChess(roomId, ready) {
       socket.off('game:error',   onError);
       socket.off('game:reset',   onReset);
     };
-  }, [roomId, ready]);
+  }, [roomId, ready, socketRef]);
 
   const act = useCallback(
-    (action, payload = {}) => getSocket().emit('game:action', { roomId, gameId: GAME_ID, action, payload }),
-    [roomId]
+    (action, payload = {}) => socketRef?.current?.emit('game:action', { roomId, gameId: GAME_ID, action, payload }),
+    [roomId, socketRef]
   );
 
   return {

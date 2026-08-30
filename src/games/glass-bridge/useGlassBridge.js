@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getSocket } from '../../lib/socket.js';
 
 const GAME_ID = 'glass-bridge';
 
-export function useGlassBridge(roomId, ready) {
+export function useGlassBridge(roomId, ready, socketRef) {
   const [state, setState]   = useState(null);
   const [waiting, setWaiting] = useState(false);
   const [error, setError]   = useState(null);
@@ -14,7 +13,8 @@ export function useGlassBridge(roomId, ready) {
 
   useEffect(() => {
     if (!roomId || !ready) return;
-    const socket = getSocket();
+    const socket = socketRef?.current;
+    if (!socket) return undefined;
 
     const onState   = (p) => { if (p.gameId !== GAME_ID) return; setWaiting(false); setState(p.state); };
     const onWaiting = (p) => { if (p.gameId !== GAME_ID) return; setWaiting(true); };
@@ -33,11 +33,11 @@ export function useGlassBridge(roomId, ready) {
       socket.off('game:error',   onError);
       socket.off('game:reset',   onReset);
     };
-  }, [roomId, ready]);
+  }, [roomId, ready, socketRef]);
 
   const act = useCallback(
-    (action, payload = {}) => getSocket().emit('game:action', { roomId, gameId: GAME_ID, action, payload }),
-    [roomId]
+    (action, payload = {}) => socketRef?.current?.emit('game:action', { roomId, gameId: GAME_ID, action, payload }),
+    [roomId, socketRef]
   );
 
   return {

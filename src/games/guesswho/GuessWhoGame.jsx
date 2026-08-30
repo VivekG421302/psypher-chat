@@ -225,7 +225,7 @@ function InlineChat({ onSend }) {
 
 /* ── Main ───────────────────────────────────────────────────────── */
 export default function GuessWhoGame({ roomId, connected, chat }) {
-  const { state, waiting, error, askQuestion, accuse, toggleCharacter, restart } = useGuessWho(roomId, connected);
+  const { state, waiting, error, askQuestion, accuse, toggleCharacter, restart } = useGuessWho(roomId, connected, chat.socket);
   const [showRules, setShowRules]         = useState(false);
   const [showSurrender, setShowSurrender] = useState(false);
   const [showEmoji, setShowEmoji]         = useState(false);

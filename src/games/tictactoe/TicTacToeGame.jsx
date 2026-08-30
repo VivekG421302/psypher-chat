@@ -135,7 +135,7 @@ function Cell({ value, onClick, disabled, isWinning }) {
 
 /* ─── Main ───────────────────────────────────────────────────────── */
 export default function TicTacToeGame({ roomId, identity, connected, chat }) {
-  const { state, waiting, error, makeMove, restart } = useTicTacToe(roomId, connected);
+  const { state, waiting, error, makeMove, restart } = useTicTacToe(roomId, connected, chat.socket);
 
   const [showRules, setShowRules] = useState(false);
   const [showConcede, setShowConcede] = useState(false);
