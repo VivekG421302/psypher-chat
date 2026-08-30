@@ -14,7 +14,8 @@ export function useGlassBridge(roomId, ready, socketRef) {
   useEffect(() => {
     if (!roomId || !ready) return;
     const socket = socketRef?.current;
-    if (!socket) return undefined;
+    if (!socket) return;
+    if (!socket.connected) return;
 
     const onState   = (p) => { if (p.gameId !== GAME_ID) return; setWaiting(false); setState(p.state); };
     const onWaiting = (p) => { if (p.gameId !== GAME_ID) return; setWaiting(true); };
@@ -26,6 +27,11 @@ export function useGlassBridge(roomId, ready, socketRef) {
     socket.on('game:error',   onError);
     socket.on('game:reset',   onReset);
     socket.emit('game:join', { roomId, gameId: GAME_ID });
+
+    function onReconnect() {
+      socket.emit('game:join', { roomId, gameId: GAME_ID });
+    }
+    socket.on('connect', onReconnect);
 
     return () => {
       socket.off('game:state',   onState);

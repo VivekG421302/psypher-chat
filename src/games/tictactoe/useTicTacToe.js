@@ -17,7 +17,12 @@ export function useTicTacToe(roomId, ready, socketRef) {
   useEffect(() => {
     if (!roomId || !ready) return undefined;
     const socket = socketRef?.current;
+    // Socket ref is populated asynchronously after useChatRoom mounts.
+    // If it's not ready yet, bail — the effect will re-run when 'ready'
+    // changes (which happens after room:joined, by which point the socket
+    // is guaranteed to exist and be connected).
     if (!socket) return undefined;
+    if (!socket.connected) return undefined;
 
     function onState(payload) {
       if (payload.gameId !== GAME_ID) return;
@@ -46,11 +51,18 @@ export function useTicTacToe(roomId, ready, socketRef) {
     // race ahead of the room rejoin (mirrors useUno / useGuessWho).
     socket.emit('game:join', { roomId, gameId: GAME_ID });
 
+    // Re-join if the socket reconnects mid-game
+    function onReconnect() {
+      socket.emit('game:join', { roomId, gameId: GAME_ID });
+    }
+    socket.on('connect', onReconnect);
+
     return () => {
       socket.off('game:state', onState);
       socket.off('game:waiting', onWaiting);
       socket.off('game:error', onError);
       socket.off('game:reset', onReset);
+      socket.off('connect', onReconnect);
     };
   }, [roomId, ready, socketRef]);
 
