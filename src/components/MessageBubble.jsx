@@ -73,14 +73,14 @@ export default function MessageBubble({
               <Gamepad2 size={15} className="text-cipher-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-mist-100">{m.starterName} started {m.gameId}</p>
-              <p className="text-[10px] text-mist-600 mt-0.5">Tap to join the game</p>
+              <p className="text-xs font-semibold text-mist-100 capitalize">{m.gameId}</p>
+              <p className="text-[10px] text-mist-600 mt-0.5">{m.starterName} started a game</p>
             </div>
             <button
               onClick={() => onJoinGame?.(m.gameId)}
-              className="shrink-0 rounded-xl bg-cipher-500 hover:bg-cipher-400 text-ink-950 text-[11px] font-bold px-3 py-1.5 transition-colors cursor-pointer"
+              className="shrink-0 rounded-xl bg-cipher-500 hover:bg-cipher-400 active:scale-95 text-ink-950 text-[11px] font-bold px-3 py-1.5 transition-all cursor-pointer"
             >
-              Join
+              Join →
             </button>
           </div>
         </div>
@@ -97,8 +97,8 @@ export default function MessageBubble({
               <Trophy size={15} className="text-signal-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-signal-300">{m.winnerName} won!</p>
-              {m.loserName && <p className="text-[10px] text-mist-600 mt-0.5">{m.gameId} · vs {m.loserName}</p>}
+              <p className="text-xs font-semibold text-signal-300">🏆 {m.winnerName} won!</p>
+              <p className="text-[10px] text-mist-600 mt-0.5 capitalize">{m.gameId || 'Game'}{m.loserName ? ` · beat ${m.loserName}` : ''}</p>
             </div>
           </div>
         </div>

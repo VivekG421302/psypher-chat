@@ -74,23 +74,34 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return undefined;
 
-    function resize() {
-      const dpr = window.devicePixelRatio || 1;
+    let lastCssW = 0;
+    let resizeTimer = null;
+
+    function doResize() {
       const cssW = wrap.clientWidth;
+      if (cssW === lastCssW) return; // no actual size change, skip
+      lastCssW = cssW;
+      const dpr = window.devicePixelRatio || 1;
       const cssH = cssW * (LOGICAL_H / LOGICAL_W);
-      canvas.style.width = `${cssW}px`;
+      canvas.style.width  = `${cssW}px`;
       canvas.style.height = `${cssH}px`;
-      canvas.width = LOGICAL_W * dpr;
+      canvas.width  = LOGICAL_W * dpr;
       canvas.height = LOGICAL_H * dpr;
       const ctx = canvas.getContext('2d');
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       redrawRef.current?.();
     }
 
-    resize();
+    function resize() {
+      // Debounce: skip rapid-fire events from iOS keyboard / scroll
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(doResize, 32);
+    }
+
+    doResize(); // immediate on mount
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
-    return () => ro.disconnect();
+    return () => { clearTimeout(resizeTimer); ro.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

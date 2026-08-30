@@ -302,7 +302,7 @@ export default function GamesDrawer({
   // Refs for keyboard-navigated game list items
   const gameItemRefs = useRef([]);
 
-  // Listen for keyboard "Enter" selection dispatched by Room.jsx shortcut handler
+  // Listen for keyboard "Enter" selection
   useEffect(() => {
     function onSelect(e) {
       const idx = e.detail?.index;
@@ -314,6 +314,18 @@ export default function GamesDrawer({
     window.addEventListener('psypher:game-select', onSelect);
     return () => window.removeEventListener('psypher:game-select', onSelect);
   }, [games]);
+
+  // Listen for direct join from chat invite card
+  useEffect(() => {
+    function onJoin(e) {
+      const gameId = e.detail?.gameId;
+      if (gameId && GAME_COMPONENTS[gameId]) {
+        setActiveGameId(gameId);
+      }
+    }
+    window.addEventListener('psypher:join-game', onJoin);
+    return () => window.removeEventListener('psypher:join-game', onJoin);
+  }, []);
 
   // Scroll focused item into view
   useEffect(() => {
