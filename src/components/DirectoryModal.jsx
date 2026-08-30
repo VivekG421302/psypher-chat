@@ -225,11 +225,18 @@ export default function DirectoryModal() {
         (r.name  || '').toLowerCase().includes(q)
       );
     }
+    // Filter out any malformed entries missing a roomId before sorting
+    list = list.filter(r => r && typeof r.roomId === 'string');
+
     list.sort((a, b) => {
       let cmp = 0;
       if (sort === 'recent') cmp = (b.lastActive || b.joinedAt || 0) - (a.lastActive || a.joinedAt || 0);
       else if (sort === 'oldest') cmp = (a.lastActive || a.joinedAt || 0) - (b.lastActive || b.joinedAt || 0);
-      else if (sort === 'name') cmp = (a.label || a.roomId).localeCompare(b.label || b.roomId);
+      else if (sort === 'name') {
+        const aName = String(a.label || a.roomId || '');
+        const bName = String(b.label || b.roomId || '');
+        cmp = aName.localeCompare(bName);
+      }
       // pinned always on top regardless of sort
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;

@@ -90,11 +90,13 @@ export function updateRoomLabel(roomId, label) {
 }
 
 export function listPastRooms() {
-  return Object.values(loadRooms()).sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1;
-    if (!a.pinned && b.pinned) return  1;
-    return (b.lastActive ?? b.joinedAt ?? 0) - (a.lastActive ?? a.joinedAt ?? 0);
-  });
+  return Object.values(loadRooms())
+    .filter(r => r && typeof r.roomId === 'string')   // drop malformed entries
+    .sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return  1;
+      return (b.lastActive ?? b.joinedAt ?? 0) - (a.lastActive ?? a.joinedAt ?? 0);
+    });
 }
 
 // ── IndexedDB backup ──────────────────────────────────────────────────────────
