@@ -3,9 +3,9 @@ import { useEffect, useState, useCallback } from 'react';
 const GAME_ID = 'glass-bridge';
 
 export function useGlassBridge(roomId, ready, socketRef) {
-  const [state, setState]   = useState(null);
+  const [state, setState]     = useState(null);
   const [waiting, setWaiting] = useState(false);
-  const [error, setError]   = useState(null);
+  const [error, setError]     = useState(null);
 
   useEffect(() => {
     if (!ready) { setState(null); setWaiting(false); }
@@ -15,29 +15,27 @@ export function useGlassBridge(roomId, ready, socketRef) {
     if (!roomId || !ready) return;
     const socket = socketRef?.current;
     if (!socket) return;
-    if (!socket.connected) return;
 
-    const onState   = (p) => { if (p.gameId !== GAME_ID) return; setWaiting(false); setState(p.state); };
-    const onWaiting = (p) => { if (p.gameId !== GAME_ID) return; setWaiting(true); };
-    const onError   = (p) => { if (p.gameId !== GAME_ID) return; setError(p.message); setTimeout(() => setError(null), 3000); };
-    const onReset   = (p) => { if (p.gameId !== GAME_ID) return; setState(null); };
+    function join() { socket.emit('game:join', { roomId, gameId: GAME_ID }); }
+    function onState(p)   { if (p.gameId !== GAME_ID) return; setWaiting(false); setState(p.state); }
+    function onWaiting(p) { if (p.gameId !== GAME_ID) return; setWaiting(true); }
+    function onError(p)   { if (p.gameId !== GAME_ID) return; setError(p.message); setTimeout(() => setError(null), 2500); }
+    function onReset(p)   { if (p.gameId !== GAME_ID) return; setState(null); }
 
     socket.on('game:state',   onState);
     socket.on('game:waiting', onWaiting);
     socket.on('game:error',   onError);
     socket.on('game:reset',   onReset);
-    socket.emit('game:join', { roomId, gameId: GAME_ID });
+    socket.on('connect',      join);
 
-    function onReconnect() {
-      socket.emit('game:join', { roomId, gameId: GAME_ID });
-    }
-    socket.on('connect', onReconnect);
+    if (socket.connected) join();
 
     return () => {
       socket.off('game:state',   onState);
       socket.off('game:waiting', onWaiting);
       socket.off('game:error',   onError);
       socket.off('game:reset',   onReset);
+      socket.off('connect',      join);
     };
   }, [roomId, ready, socketRef]);
 
@@ -47,10 +45,8 @@ export function useGlassBridge(roomId, ready, socketRef) {
   );
 
   return {
-    state,
-    waiting,
-    error,
-    step:    (panel) => act('step', { panel }),
-    restart: ()      => act('restart'),
+    state, waiting, error,
+    choose:  (index) => act('choose', { index }),
+    restart: () => act('restart'),
   };
 }

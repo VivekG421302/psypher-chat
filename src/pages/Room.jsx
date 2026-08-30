@@ -275,15 +275,17 @@ export default function Room() {
     if (!socket || !identity) return undefined;
 
     function onGameStarted({ gameId, startedBy, starterName }) {
-      if (startedBy === identity.userId) return; // it was us
+      // Ignore our own game:started (we emitted it)
+      if (startedBy === identity.userId) return;
       setOpponentGame({ gameId });
       setOpponentGameUnseen(true);
-      if (notifiedGameRef.current !== gameId) {
-        notifiedGameRef.current = gameId;
+      // Only show the invite card once per unique game+starter combination
+      const notifyKey = `${gameId}:${startedBy}`;
+      if (notifiedGameRef.current !== notifyKey) {
+        notifiedGameRef.current = notifyKey;
         const starter = chat.members.find((m) => m.userId === startedBy);
         const name = starter?.name || starterName || 'Your partner';
-        // Inject a rich game-invite card into the chat stream
-        chat.notifyLocal(`${name} started ${gameId}`, {
+        chat.notifyLocal(`${name} invited you to ${gameId}`, {
           kind: 'game-invite',
           gameId,
           starterName: name,
@@ -292,7 +294,7 @@ export default function Room() {
     }
     function onGameEnded({ gameId, winnerName, loserName } = {}) {
       setOpponentGame(null);
-      notifiedGameRef.current = null;
+      notifiedGameRef.current = null; // reset so next game shows notification
       if (winnerName) {
         chat.notifyLocal(`${winnerName} won the ${gameId || 'game'} against ${loserName || 'opponent'}`, {
           kind: 'game-result',

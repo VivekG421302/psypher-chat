@@ -15,29 +15,27 @@ export function useChess(roomId, ready, socketRef) {
     if (!roomId || !ready) return;
     const socket = socketRef?.current;
     if (!socket) return;
-    if (!socket.connected) return;
 
-    const onState   = p => { if (p.gameId !== GAME_ID) return; setWaiting(false); setState(p.state); };
-    const onWaiting = p => { if (p.gameId !== GAME_ID) return; setWaiting(true); };
-    const onError   = p => { if (p.gameId !== GAME_ID) return; setError(p.message); setTimeout(() => setError(null), 3000); };
-    const onReset   = p => { if (p.gameId !== GAME_ID) return; setState(null); };
+    function join() { socket.emit('game:join', { roomId, gameId: GAME_ID }); }
+    function onState(p)   { if (p.gameId !== GAME_ID) return; setWaiting(false); setState(p.state); }
+    function onWaiting(p) { if (p.gameId !== GAME_ID) return; setWaiting(true); }
+    function onError(p)   { if (p.gameId !== GAME_ID) return; setError(p.message); setTimeout(() => setError(null), 2500); }
+    function onReset(p)   { if (p.gameId !== GAME_ID) return; setState(null); }
 
     socket.on('game:state',   onState);
     socket.on('game:waiting', onWaiting);
     socket.on('game:error',   onError);
     socket.on('game:reset',   onReset);
-    socket.emit('game:join', { roomId, gameId: GAME_ID });
+    socket.on('connect',      join);
 
-    function onReconnect() {
-      socket.emit('game:join', { roomId, gameId: GAME_ID });
-    }
-    socket.on('connect', onReconnect);
+    if (socket.connected) join();
 
     return () => {
       socket.off('game:state',   onState);
       socket.off('game:waiting', onWaiting);
       socket.off('game:error',   onError);
       socket.off('game:reset',   onReset);
+      socket.off('connect',      join);
     };
   }, [roomId, ready, socketRef]);
 
@@ -48,11 +46,10 @@ export function useChess(roomId, ready, socketRef) {
 
   return {
     state, waiting, error,
-    move:       (fromR, fromC, toR, toC) => act('move', { fromR, fromC, toR, toC }),
-    promote:    (piece)                  => act('promote', { piece }),
-    offerDraw:  ()                       => act('offer_draw'),
-    acceptDraw: ()                       => act('accept_draw'),
-    resign:     ()                       => act('resign'),
-    restart:    ()                       => act('restart'),
+    movePiece:   (from, to, promotion) => act('move_piece', { from, to, promotion }),
+    resign:      () => act('resign'),
+    offerDraw:   () => act('offer_draw'),
+    acceptDraw:  () => act('accept_draw'),
+    restart:     () => act('restart'),
   };
 }
