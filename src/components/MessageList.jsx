@@ -16,6 +16,7 @@ export default function MessageList({
   onReact,
   onCopy,
   onJoinGame,
+  onReply,
 }) {
   const bottomRef = useRef(null);
 
