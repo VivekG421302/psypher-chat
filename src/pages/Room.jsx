@@ -518,6 +518,8 @@ export default function Room() {
           editingMessage={editingMessage}
           onSubmitEdit={submitEdit}
           onCancelEdit={() => setEditingMessage(null)}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
         />
       )}
     </div>
