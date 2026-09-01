@@ -60,6 +60,7 @@ export default function MessageList({
               onReact={onReact}
               onCopy={onCopy}
               onJoinGame={onJoinGame}
+              onReply={onReply}
             />
           </motion.div>
         ))}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Pencil, Trash2, Copy, Smile, Check, CheckSquare, Gamepad2, Trophy } from 'lucide-react';
+import { Pencil, Trash2, Copy, Smile, Check, CheckSquare, Gamepad2, Trophy, Reply } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import QuickReactBar from './QuickReactBar.jsx';
 import { useLongPress } from '../lib/useLongPress.js';
@@ -55,6 +55,7 @@ export default function MessageBubble({
   onReact,
   onCopy,
   onJoinGame,
+  onReply,
 }) {
   const [showActions, setShowActions] = useState(false);
   const [showReactBar, setShowReactBar] = useState(false);
@@ -187,6 +188,12 @@ export default function MessageBubble({
               : 'bg-ink-700 text-mist-100 rounded-bl-md'
           }`}
         >
+          {m.replyTo && (
+            <div className={`mb-1.5 rounded-lg px-2.5 py-1.5 text-xs border-l-2 ${m.mine ? 'border-ink-950/40 bg-ink-950/20' : 'border-signal-500/50 bg-signal-700/10'}`}>
+              <p className="font-semibold opacity-70 mb-0.5 truncate">{m.replyTo.senderName}</p>
+              <p className="opacity-60 truncate">{m.replyTo.text?.startsWith('[image]') ? '📷 Image' : m.replyTo.text}</p>
+            </div>
+          )}
           <RichText text={m.text} />
         </div>
 
@@ -232,6 +239,13 @@ export default function MessageBubble({
                 aria-label="React"
               >
                 <Smile size={14} />
+              </button>
+              <button
+                onClick={() => { onReply?.(m); setShowActions(false); }}
+                className="p-1.5 rounded-full text-mist-400 hover:text-cipher-500 hover:bg-ink-700 transition-colors cursor-pointer"
+                aria-label="Reply"
+              >
+                <Reply size={14} />
               </button>
               {!isImage && (
                 <button

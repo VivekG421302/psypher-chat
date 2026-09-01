@@ -28,6 +28,7 @@ export function useChatRoom(roomId, identity) {
         text: text ?? '⚠️ Could not decrypt this message.',
         failed: text === null, edited: !!msg.edited, editedAt: msg.editedAt || null,
         reactions: msg.reactions || {},
+        replyTo: msg.replyTo || null,
       };
     }
 
@@ -125,10 +126,10 @@ export function useChatRoom(roomId, identity) {
     };
   }, [roomId, identity?.userId, identity?.name, identity?.color]);
 
-  const sendMessage = useCallback(async (text) => {
+  const sendMessage = useCallback(async (text, replyTo = null) => {
     if (!text.trim() || !socketRef.current) return;
     const ciphertext = await encryptText(text, roomId);
-    socketRef.current.emit('chat:message', { roomId, ciphertext });
+    socketRef.current.emit('chat:message', { roomId, ciphertext, replyTo });
   }, [roomId]);
 
   const editMessage = useCallback(async (messageId, text) => {

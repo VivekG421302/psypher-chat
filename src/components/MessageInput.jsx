@@ -16,6 +16,8 @@ export default function MessageInput({
   editingMessage,
   onSubmitEdit,
   onCancelEdit,
+  replyingTo,
+  onCancelReply,
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pendingImage, setPendingImage] = useState(null); // { dataUrl, name }
@@ -279,6 +281,22 @@ export default function MessageInput({
             className="text-mist-500 hover:text-mist-100 transition-colors cursor-pointer"
             aria-label="Cancel edit"
           >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Reply preview banner */}
+      {replyingTo && !isEditing && (
+        <div className="flex items-center gap-2 mb-2 px-1 py-1.5 rounded-xl bg-signal-700/10 border-l-2 border-signal-500/60">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-signal-400">{replyingTo.senderName}</p>
+            <p className="text-xs text-mist-500 truncate">
+              {replyingTo.text?.startsWith('[image]') ? '📷 Image' : replyingTo.text}
+            </p>
+          </div>
+          <button type="button" onClick={onCancelReply}
+            className="text-mist-600 hover:text-mist-300 transition-colors cursor-pointer shrink-0" aria-label="Cancel reply">
             <X size={14} />
           </button>
         </div>

@@ -186,6 +186,7 @@ export default function Room() {
   const [gamesOpen, setGamesOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [editingMessage, setEditingMessage] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
   // Mobile toggle between chat and game panel (when both are open)
   const [mobileView, setMobileView] = useState('chat'); // 'chat' | 'game'
   // Tracked at Room level (not inside GamesDrawer) so the notification works
@@ -492,6 +493,7 @@ export default function Room() {
         onReact={(id, emoji) => chat.reactToMessage(id, emoji)}
         onCopy={copyText}
         onJoinGame={joinGameFromChat}
+        onReply={(msg) => { setEditingMessage(null); setReplyingTo(msg); }}
       />
       {!chat.connected && (
         <div className="px-4 py-2 bg-danger/10 border-t border-danger/30 text-danger text-xs text-center shrink-0">
