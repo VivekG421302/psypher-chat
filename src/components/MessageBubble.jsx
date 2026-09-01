@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Pencil, Trash2, Copy, Smile, Check, CheckSquare, Gamepad2, Trophy, Reply } from 'lucide-react';
+import { Pencil, Trash2, Copy, Smile, Check, CheckSquare, Gamepad2, Trophy, Reply, Download, FileText, File, Music, Video } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import QuickReactBar from './QuickReactBar.jsx';
 import { useLongPress } from '../lib/useLongPress.js';
@@ -15,7 +15,54 @@ function formatTime(ts) {
  *   *bold*, _italic_, ~strikethrough~, #underline# (combinable), and
  *   numbered lists preserved across newlines.
  */
-function RichText({ text }) {
+function fileTypeIcon(mime) {
+  if (!mime) return File;
+  if (mime.startsWith('audio/')) return Music;
+  if (mime.startsWith('video/')) return Video;
+  if (mime.includes('pdf') || mime.includes('text')) return FileText;
+  return File;
+}
+
+function FileCard({ text, mine }) {
+  // [file]mime|name|dataUrl
+  const raw   = text.slice('[file]'.length);
+  const first = raw.indexOf('|');
+  const second = raw.indexOf('|', first + 1);
+  const mime    = raw.slice(0, first);
+  const name    = raw.slice(first + 1, second);
+  const dataUrl = raw.slice(second + 1);
+  const Icon    = fileTypeIcon(mime);
+  const ext     = name.split('.').pop()?.toUpperCase() || 'FILE';
+
+  function download() {
+    const a  = document.createElement('a');
+    a.href   = dataUrl;
+    a.download = name;
+    a.click();
+  }
+
+  return (
+    <div className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 min-w-[180px] ${mine ? 'bg-ink-950/20' : 'bg-ink-800/60'}`}>
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${mine ? 'bg-ink-950/30' : 'bg-ink-700'}`}>
+        <Icon size={18} className={mine ? 'text-ink-300' : 'text-mist-400'} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-xs font-medium truncate ${mine ? 'text-ink-100' : 'text-mist-100'}`}>{name}</p>
+        <p className={`text-[10px] ${mine ? 'text-ink-400' : 'text-mist-600'}`}>{ext}</p>
+      </div>
+      <button onClick={download}
+        className={`p-1.5 rounded-lg cursor-pointer transition-colors ${mine ? 'hover:bg-ink-950/30 text-ink-300' : 'hover:bg-ink-700 text-mist-400 hover:text-mist-100'}`}
+        title="Download" aria-label="Download file">
+        <Download size={14} />
+      </button>
+    </div>
+  );
+}
+
+function RichText({ text, mine }) {
+  if (text?.startsWith('[file]')) {
+    return <FileCard text={text} mine={mine} />;
+  }
   // Handle image messages
   if (text?.startsWith('[image]data:image')) {
     return (
@@ -129,6 +176,7 @@ export default function MessageBubble({
 
   const reactionEntries = Object.entries(m.reactions || {}).filter(([, users]) => users.length > 0);
   const isImage = m.text?.startsWith('[image]data:image');
+  const isFile  = m.text?.startsWith('[file]');
 
   function handleClick() {
     if (longPress.didLongPress()) return;
@@ -194,7 +242,7 @@ export default function MessageBubble({
               <p className="opacity-60 truncate">{m.replyTo.text?.startsWith('[image]') ? '📷 Image' : m.replyTo.text}</p>
             </div>
           )}
-          <RichText text={m.text} />
+          <RichText text={m.text} mine={m.mine} />
         </div>
 
         <div className="flex items-center gap-1.5 mt-0.5 px-1">
@@ -247,7 +295,7 @@ export default function MessageBubble({
               >
                 <Reply size={14} />
               </button>
-              {!isImage && (
+              {!isImage && !isFile && (
                 <button
                   onClick={() => onCopy(m.text)}
                   className="p-1.5 rounded-full text-mist-400 hover:text-mist-100 hover:bg-ink-700 transition-colors cursor-pointer"
