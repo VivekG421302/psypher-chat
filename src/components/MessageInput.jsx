@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Send, Smile, X, Check, Bold, Italic, Underline as UnderlineIcon,
   Strikethrough, CheckSquare, Paperclip, Camera, Image as ImageIcon,
-  FileText, File,
+  FileText, File, Mic, Square,
 } from 'lucide-react';
 import EmojiPicker from './EmojiPicker.jsx';
 import { domToMarkdown, markdownToHtml, autoFormatEmphasis, startNumberedListIfMatched } from '../lib/richText.jsx';
@@ -94,14 +94,20 @@ export default function MessageInput({
   const [pendingFile,      setPendingFile]       = useState(null); // { name, mime, size, dataUrl, isImage }
   const [isEmpty,          setIsEmpty]           = useState(true);
   const [selectionToolbar, setSelectionToolbar]  = useState(false);
+  const [recording,         setRecording]          = useState(false);
+  const [recordSeconds,     setRecordSeconds]       = useState(0);
+  const mediaRecorderRef  = useRef(null);
+  const recordTimerRef    = useRef(null);
+  const audioChunksRef    = useRef([]);
 
   const editorRef      = useRef(null);
   const typingActive   = useRef(false);
   const typingStopTimer= useRef(null);
   const pickerWrapRef  = useRef(null);
-  const emojiButtonRef = useRef(null);
-  const attachBtnRef   = useRef(null);
-  const attachWrapRef  = useRef(null);
+  const emojiButtonRef  = useRef(null);
+  const attachBtnRef    = useRef(null);
+  const attachWrapRef   = useRef(null);
+  const cameraInputRef  = useRef(null);
 
   const isEditing = !!editingMessage;
 
@@ -288,6 +294,43 @@ export default function MessageInput({
     const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
   }
 
+  async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert('Your browser does not support audio recording.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        if (blob.size > MAX_BYTES) { alert(`Voice note too large (max ${MAX_FILE_MB} MB).`); return; }
+        const reader = new FileReader();
+        reader.onload = ev => {
+          setPendingFile({ name: 'Voice note.webm', mime: 'audio/webm', size: blob.size, dataUrl: ev.target.result, isImage: false });
+        };
+        reader.readAsDataURL(blob);
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+      setRecordSeconds(0);
+      recordTimerRef.current = setInterval(() => setRecordSeconds(s => s + 1), 1000);
+    } catch { alert('Could not access microphone.'); }
+  }
+
+  function stopRecording() {
+    clearInterval(recordTimerRef.current);
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+    setRecordSeconds(0);
+  }
+
+  function fmtSeconds(s) { return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+
   function submit(e) {
     e?.preventDefault?.();
     if (pendingFile) {
@@ -411,12 +454,36 @@ export default function MessageInput({
           <Smile size={19} />
         </button>
 
-        {/* Attach */}
+        {/* Camera (always visible) */}
+        <button type="button" onClick={() => cameraInputRef.current?.click()} disabled={disabled}
+          className="shrink-0 p-2 rounded-xl text-mist-500 hover:text-cipher-500 hover:bg-ink-800 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          aria-label="Open camera">
+          <Camera size={18} />
+        </button>
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment"
+          className="hidden" onChange={handleFileInput} />
+
+        {/* Attach (files/docs) */}
         <button type="button" ref={attachBtnRef} onClick={() => setAttachOpen(v => !v)} disabled={disabled}
           className={`shrink-0 p-2 rounded-xl transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${attachOpen ? 'text-signal-500 bg-ink-800' : 'text-mist-500 hover:text-signal-500 hover:bg-ink-800'}`}
-          aria-label="Attach">
+          aria-label="Attach file">
           <Paperclip size={18} />
         </button>
+
+        {/* Mic / voice note */}
+        {recording ? (
+          <button type="button" onClick={stopRecording}
+            className="shrink-0 p-2 rounded-xl bg-danger/20 text-danger animate-pulse cursor-pointer"
+            aria-label="Stop recording" title={`Recording ${fmtSeconds(recordSeconds)}`}>
+            <Square size={18} />
+          </button>
+        ) : (
+          <button type="button" onClick={startRecording} disabled={disabled || !!pendingFile}
+            className="shrink-0 p-2 rounded-xl text-mist-500 hover:text-cipher-500 hover:bg-ink-800 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Record voice note">
+            <Mic size={18} />
+          </button>
+        )}
 
         {/* Editor */}
         <div className="relative flex-1 min-w-0">

@@ -141,7 +141,13 @@ export default function TicTacToeGame({ roomId, identity, connected, chat }) {
   const [showConcede, setShowConcede] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
-  const lastSeenMsgId = useRef(null);
+  // Initialize with the last known message so existing chat doesn't
+  // flood as "new" floating bubbles when the game first mounts.
+  const lastSeenMsgId = useRef(
+    chat?.messages?.length
+      ? chat.messages[chat.messages.length - 1].id
+      : null
+  );
 
   // Incoming chat → floating bubble, so you never have to leave the board
   // to see what your opponent just said.

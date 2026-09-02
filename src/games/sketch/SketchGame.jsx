@@ -149,7 +149,13 @@ export default function SketchGame({ roomId, identity, connected, chat }) {
   const [color, setColor] = useState(COLORS[0]);
   const [brushSize, setBrushSize] = useState(SIZES[1].value);
   const [guessValue, setGuessValue] = useState('');
-  const lastSeenMsgId = useRef(null);
+  // Initialize with the last known message so existing chat doesn't
+  // flood as "new" floating bubbles when the game first mounts.
+  const lastSeenMsgId = useRef(
+    chat?.messages?.length
+      ? chat.messages[chat.messages.length - 1].id
+      : null
+  );
   const [now, setNow] = useState(Date.now());
   const firedDeadline = useRef(null);
   const guessListRef = useRef(null);

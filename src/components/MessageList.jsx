@@ -17,6 +17,7 @@ export default function MessageList({
   onCopy,
   onJoinGame,
   onReply,
+  opponentSeenUpTo,
 }) {
   const bottomRef = useRef(null);
 
@@ -62,6 +63,7 @@ export default function MessageList({
               onCopy={onCopy}
               onJoinGame={onJoinGame}
               onReply={onReply}
+              opponentSeenUpTo={opponentSeenUpTo}
             />
           </motion.div>
         ))}

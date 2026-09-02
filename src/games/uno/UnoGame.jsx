@@ -196,7 +196,7 @@ export default function UnoGame({ roomId, connected, onClose, chat }) {
   const [chatBubbles, setChatBubbles]   = useState([]);
   const [catchCooldown, setCatchCooldown] = useState(false);
   const lastSeenColorSeq = useRef(0);
-  const lastSeenMsgId    = useRef(null);
+  const lastSeenMsgId    = useRef(chat?.messages?.length ? chat.messages[chat.messages.length-1].id : null);
 
   // Color change banner
   useEffect(() => {

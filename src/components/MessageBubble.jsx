@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Pencil, Trash2, Copy, Smile, Check, CheckSquare, Gamepad2, Trophy, Reply, Download, FileText, File, Music, Video } from 'lucide-react';
+import { Pencil, Trash2, Copy, Smile, Check, CheckSquare, Gamepad2, Trophy, Reply, Download, FileText, File, Music, Video, CheckCheck } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import QuickReactBar from './QuickReactBar.jsx';
 import { useLongPress } from '../lib/useLongPress.js';
@@ -103,6 +103,7 @@ export default function MessageBubble({
   onCopy,
   onJoinGame,
   onReply,
+  opponentSeenUpTo = 0,
 }) {
   const [showActions, setShowActions] = useState(false);
   const [showReactBar, setShowReactBar] = useState(false);
@@ -248,6 +249,14 @@ export default function MessageBubble({
         <div className="flex items-center gap-1.5 mt-0.5 px-1">
           <span className="text-[10px] text-mist-700">{formatTime(m.ts)}</span>
           {m.edited && <span className="text-[10px] text-mist-700 italic">edited</span>}
+          {m.mine && m.kind === 'message' && (
+            <span className="text-[10px]">
+              {opponentSeenUpTo >= m.ts
+                ? <CheckCheck size={12} className="text-cipher-500" title="Seen" />
+                : <Check size={12} className="text-mist-600" title="Sent" />
+              }
+            </span>
+          )}
         </div>
 
         {reactionEntries.length > 0 && (

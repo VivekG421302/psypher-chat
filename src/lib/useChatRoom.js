@@ -10,6 +10,7 @@ export function useChatRoom(roomId, identity) {
   const [messages, setMessages]     = useState([]);
   const [typingUser, setTypingUser] = useState(null);
   const [gameReactions, setGameReactions] = useState([]);
+  const [opponentSeenUpTo, setOpponentSeenUpTo] = useState(0);
   const typingTimeout = useRef(null);
   const socketRef     = useRef(null);
 
@@ -43,7 +44,12 @@ export function useChatRoom(roomId, identity) {
       setConnected(true);
       setMembers(payload.room.members);
       // Full history replay on (re)join, including reconnects
-      Promise.all(payload.messages.map(decryptIncoming)).then(setMessages);
+      Promise.all(payload.messages.map(decryptIncoming)).then(msgs => {
+        setMessages(msgs);
+        // Mark all existing messages as seen
+        const latestTs = msgs.reduce((max, m) => Math.max(max, m.ts || 0), 0);
+        if (latestTs) socket.emit('chat:seen', { roomId, upToTs: latestTs });
+      });
       // Save to storage on every successful join
       rememberRoom(roomId, { userId: identity.userId, name: identity.name });
     }
@@ -80,6 +86,11 @@ export function useChatRoom(roomId, identity) {
     function onGameReaction(payload) {
       setGameReactions(prev => [...prev.slice(-8), payload]);
     }
+    function onSeen({ byUserId, upToTs }) {
+      if (byUserId !== identity.userId) {
+        setOpponentSeenUpTo(prev => Math.max(prev, upToTs));
+      }
+    }
     function onTyping(payload) {
       if (payload.userId === identity.userId) return;
       setTypingUser(payload.isTyping ? payload.name : null);
@@ -101,6 +112,7 @@ export function useChatRoom(roomId, identity) {
     socket.on('chat:message_deleted',onDeleted);
     socket.on('chat:reaction',      onReaction);
     socket.on('room:reaction',      onGameReaction);
+    socket.on('chat:seen',          onSeen);
     socket.on('chat:typing',        onTyping);
     socket.on('connect',            onConnect);
     socket.on('disconnect',         onDisconnect);
@@ -117,6 +129,7 @@ export function useChatRoom(roomId, identity) {
       socket.off('chat:message_deleted',onDeleted);
       socket.off('chat:reaction',      onReaction);
       socket.off('room:reaction',      onGameReaction);
+      socket.off('chat:seen',          onSeen);
       socket.off('chat:typing',        onTyping);
       socket.off('connect',            onConnect);
       socket.off('disconnect',         onDisconnect);
@@ -151,10 +164,16 @@ export function useChatRoom(roomId, identity) {
     }]);
   }, []);
 
+  // Update an existing local message (e.g. update game-invite card with winner)
+  const updateLocal = useCallback((predicate, patch) => {
+    setMessages(prev => prev.map(m => predicate(m) ? { ...m, ...patch } : m));
+  }, []);
+
   return {
     status, connected, members, messages, typingUser, gameReactions,
+    opponentSeenUpTo,
     sendMessage, editMessage, deleteMessage, reactToMessage, sendGameReaction,
-    setTyping, leaveRoom, notifyLocal,
+    setTyping, leaveRoom, notifyLocal, updateLocal, markSeen,
     socket: socketRef,
   };
 }

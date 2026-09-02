@@ -6,6 +6,7 @@ import { useProfile } from '../context/ProfileContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useChatRoom } from '../lib/useChatRoom.js';
 import { useViewportHeight } from '../lib/useViewportHeight.js';
+import { useNotifications } from '../lib/useNotifications.js';
 import { useFaviconBadge } from '../lib/useFaviconBadge.js';
 import { getRememberedRoom, rememberRoom } from '../lib/storage.js';
 import { api } from '../lib/api.js';
@@ -187,6 +188,7 @@ export default function Room() {
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [editingMessage, setEditingMessage] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
+  const inputFocusRef = useRef(null);
   // Mobile toggle between chat and game panel (when both are open)
   const [mobileView, setMobileView] = useState('chat'); // 'chat' | 'game'
   // Tracked at Room level (not inside GamesDrawer) so the notification works
@@ -215,6 +217,7 @@ export default function Room() {
   }, [gamesOpen]);
 
   const chat = useChatRoom(roomId, identity);
+  const { notify: pushNotify } = useNotifications(roomId);
   const viewportHeight = useViewportHeight();
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────
@@ -270,6 +273,23 @@ export default function Room() {
     return () => window.removeEventListener('keydown', onKey);
   }, [gamesOpen, gameListFocus]);
 
+  // ── Push notifications for new messages ──────────────────────────────────────
+  const lastNotifMsgRef = useRef(null);
+  useEffect(() => {
+    if (!chat.messages.length || !identity) return;
+    const last = chat.messages[chat.messages.length - 1];
+    if (last.kind !== 'message' || last.mine || lastNotifMsgRef.current === last.id) return;
+    lastNotifMsgRef.current = last.id;
+    const preview = last.text?.startsWith('[image]') ? '📷 Image'
+      : last.text?.startsWith('[file]') ? '📎 File'
+      : last.text?.slice(0, 60) || '';
+    pushNotify(last.senderName || 'New message', preview, `msg-${roomId}`);
+    // Mark as seen if we have focus
+    if (!document.hidden && document.hasFocus()) {
+      chat.markSeen(last.ts);
+    }
+  }, [chat.messages, identity, pushNotify, roomId, chat.markSeen]);
+
   // ── Game invite cards in chat ──────────────────────────────────────────────
   useEffect(() => {
     const socket = chat.socket?.current;
@@ -295,23 +315,19 @@ export default function Room() {
     }
     function onGameEnded({ gameId, winnerName, loserName } = {}) {
       setOpponentGame(null);
-      notifiedGameRef.current = null; // reset so next game shows notification
-      if (winnerName) {
-        chat.notifyLocal(`${winnerName} won the ${gameId || 'game'} against ${loserName || 'opponent'}`, {
-          kind: 'game-result',
-          winnerName,
-          loserName,
-          gameId,
-        });
-      }
+      notifiedGameRef.current = null;
     }
-    // Also listen for game-result broadcast from backend
     function onGameResult({ gameId, winnerName, loserName } = {}) {
-      chat.notifyLocal(`🏆 ${winnerName} won ${gameId || 'the game'}${loserName ? ` against ${loserName}` : ''}`, {
-        kind: 'game-result',
-        winnerName,
-        loserName,
-        gameId,
+      // Update the existing invite card for this game in-place rather than adding a new card
+      chat.updateLocal(
+        m => m.kind === 'game-invite' && m.gameId === gameId,
+        { kind: 'game-result', winnerName, loserName, gameId }
+      );
+      // If no invite card exists (e.g. winner's own view), add a result card
+      chat.notifyLocal('', {
+        kind: 'game-result-fallback',
+        winnerName, loserName, gameId,
+        // Will only render if no invite card was updated
       });
     }
 
@@ -492,8 +508,17 @@ export default function Room() {
         onDelete={(id) => chat.deleteMessage(id)}
         onReact={(id, emoji) => chat.reactToMessage(id, emoji)}
         onCopy={copyText}
+        opponentSeenUpTo={chat.opponentSeenUpTo}
         onJoinGame={joinGameFromChat}
-        onReply={(msg) => { setEditingMessage(null); setReplyingTo(msg); }}
+        onReply={(msg) => {
+          setEditingMessage(null);
+          setReplyingTo(msg);
+          // Auto-focus the chat input after setting reply
+          setTimeout(() => {
+            const el = document.querySelector('[data-chat-input]');
+            if (el) { el.focus(); }
+          }, 50);
+        }}
       />
       {!chat.connected && (
         <div className="px-4 py-2 bg-danger/10 border-t border-danger/30 text-danger text-xs text-center shrink-0">
