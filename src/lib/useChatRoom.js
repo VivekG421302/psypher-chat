@@ -156,6 +156,7 @@ export function useChatRoom(roomId, identity) {
   const sendGameReaction= useCallback((emoji) => socketRef.current?.emit('room:react', { roomId, emoji }), [roomId]);
   const setTyping       = useCallback((isTyping) => socketRef.current?.emit('chat:typing', { roomId, isTyping }), [roomId]);
   const leaveRoom       = useCallback(() => socketRef.current?.emit('room:leave'), []);
+  const markSeen        = useCallback((ts) => socketRef.current?.emit('chat:seen', { roomId, upToTs: ts }), [roomId]);
 
   const notifyLocal = useCallback((text, extraFields = {}) => {
     setMessages(prev => [...prev, {
