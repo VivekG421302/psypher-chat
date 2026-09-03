@@ -51,9 +51,8 @@ function AttachmentPreview({ file, onRemove }) {
 }
 
 // Attachment picker — shows on + button tap
-function AttachPicker({ onFile, onCamera, onClose }) {
-  const fileRef   = useRef(null);
-  const cameraRef = useRef(null);
+function AttachPicker({ onFile, onClose }) {
+  const fileRef = useRef(null);
   return (
     <motion.div
       initial={{ opacity: 0, y: 8, scale: 0.96 }}
@@ -68,10 +67,7 @@ function AttachPicker({ onFile, onCamera, onClose }) {
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-mist-200 hover:bg-ink-700 transition-colors cursor-pointer text-left">
           <Paperclip size={16} className="text-signal-500 shrink-0" /> File or Document
         </button>
-        <button type="button" onClick={() => { cameraRef.current?.click(); onClose(); }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-mist-200 hover:bg-ink-700 transition-colors cursor-pointer text-left">
-          <Camera size={16} className="text-cipher-500 shrink-0" /> Camera
-        </button>
+
       </div>
       {/* Hidden inputs */}
       <input ref={fileRef} type="file" className="hidden"

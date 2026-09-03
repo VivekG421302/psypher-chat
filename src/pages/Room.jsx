@@ -323,12 +323,7 @@ export default function Room() {
         m => m.kind === 'game-invite' && m.gameId === gameId,
         { kind: 'game-result', winnerName, loserName, gameId }
       );
-      // If no invite card exists (e.g. winner's own view), add a result card
-      chat.notifyLocal('', {
-        kind: 'game-result-fallback',
-        winnerName, loserName, gameId,
-        // Will only render if no invite card was updated
-      });
+
     }
 
     socket.on('game:started', onGameStarted);

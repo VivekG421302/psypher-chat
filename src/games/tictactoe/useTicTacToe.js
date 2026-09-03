@@ -46,7 +46,7 @@ export function useTicTacToe(roomId, ready, socketRef) {
 
   return {
     state, waiting, error,
-    move:    (index) => act('make_move', { index }),
+    makeMove: (index) => act('make_move', { index }),
     restart: () => act('restart'),
   };
 }

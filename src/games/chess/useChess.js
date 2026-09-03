@@ -46,7 +46,8 @@ export function useChess(roomId, ready, socketRef) {
 
   return {
     state, waiting, error,
-    movePiece:   (from, to, promotion) => act('move', { from, to, promotion }),
+    move:        (from, to, promotion) => act('move', { from, to, promotion }),
+    promote:     (piece) => act('promote', { piece }),
     resign:      () => act('resign'),
     offerDraw:   () => act('offer_draw'),
     acceptDraw:  () => act('accept_draw'),
