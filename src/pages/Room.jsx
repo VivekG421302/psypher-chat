@@ -199,6 +199,11 @@ export default function Room() {
   const setFaviconUnread = useFaviconBadge();
   const lastMessageIdRef = useRef(null);
 
+  // Request notification permission once user has deliberately entered a room
+  useEffect(() => {
+    if (identity) requestPermission();
+  }, [identity, requestPermission]);
+
   useEffect(() => {
     const remembered = getRememberedRoom(roomId);
     if (remembered?.userId) {
@@ -217,7 +222,7 @@ export default function Room() {
   }, [gamesOpen]);
 
   const chat = useChatRoom(roomId, identity);
-  const { notify: pushNotify } = useNotifications(roomId);
+  const { notify: pushNotify, requestPermission } = useNotifications();
   const viewportHeight = useViewportHeight();
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────
