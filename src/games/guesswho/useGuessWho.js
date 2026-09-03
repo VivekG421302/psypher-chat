@@ -46,10 +46,9 @@ export function useGuessWho(roomId, ready, socketRef) {
 
   return {
     state, waiting, error,
-    eliminate:      (charId) => act('eliminate', { charId }),
-    askQuestion:    (question) => act('ask_question', { question }),
-    answerQuestion: (answer) => act('answer_question', { answer }),
-    makeGuess:      (charId) => act('make_guess', { charId }),
-    restart:        () => act('restart'),
+    askQuestion:      (question) => act('ask_question', { question }),
+    accuse:           (charId) => act('accuse', { charId }),
+    toggleCharacter:  (charId) => act('toggle_character', { charId }),
+    restart:          () => act('restart'),
   };
 }

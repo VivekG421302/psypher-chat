@@ -46,7 +46,7 @@ export function useGlassBridge(roomId, ready, socketRef) {
 
   return {
     state, waiting, error,
-    choose:  (index) => act('choose', { index }),
+    choose:  (index) => act('step', { index }),
     restart: () => act('restart'),
   };
 }
