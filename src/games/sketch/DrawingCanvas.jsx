@@ -74,13 +74,13 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return undefined;
 
-    let lastCssW = 0;
-    let resizeTimer = null;
+    // Use an object for mutable state — avoids TDZ when minifier reorders let declarations
+    const state = { lastCssW: 0, resizeTimer: null };
 
     function doResize() {
       const cssW = wrap.clientWidth;
-      if (cssW === lastCssW) return; // no actual size change, skip
-      lastCssW = cssW;
+      if (cssW === state.lastCssW) return;
+      state.lastCssW = cssW;
       const dpr = window.devicePixelRatio || 1;
       const cssH = cssW * (LOGICAL_H / LOGICAL_W);
       canvas.style.width  = `${cssW}px`;
@@ -93,15 +93,14 @@ export default function DrawingCanvas({ strokes, isDrawer, color, size, roundKey
     }
 
     function resize() {
-      // Debounce: skip rapid-fire events from iOS keyboard / scroll
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(doResize, 32);
+      clearTimeout(state.resizeTimer);
+      state.resizeTimer = setTimeout(doResize, 32);
     }
 
-    doResize(); // immediate on mount
+    doResize();
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
-    return () => { clearTimeout(resizeTimer); ro.disconnect(); };
+    return () => { clearTimeout(state.resizeTimer); ro.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

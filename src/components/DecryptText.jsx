@@ -21,20 +21,20 @@ export default function DecryptText({ text, as: Tag = 'span', className = '', sp
       return;
     }
 
-    let iteration = 0;
+    const st = { iteration: 0 };
     frame.current = 0;
     const totalFrames = text.length * speed;
 
     function tick() {
       frame.current++;
       const progress = frame.current / speed;
-      iteration = progress;
+      st.st.iteration = progress;
 
       const next = text
         .split('')
         .map((ch, i) => {
           if (ch === ' ') return ' ';
-          if (i < iteration) return text[i];
+          if (i < st.iteration) return text[i];
           return GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
         })
         .join('');
