@@ -184,6 +184,10 @@ export default function Room() {
   const { profile } = useProfile();
   const { notify } = useToast();
   const [identity, setIdentity] = useState(null);
+  const notifHook = useNotifications();
+  const pushNotify = notifHook.notify;
+  const permReqRef = useRef(notifHook.requestPermission);
+  permReqRef.current = notifHook.requestPermission;
   const [gamesOpen, setGamesOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [editingMessage, setEditingMessage] = useState(null);
@@ -199,10 +203,12 @@ export default function Room() {
   const setFaviconUnread = useFaviconBadge();
   const lastMessageIdRef = useRef(null);
 
-  // Request notification permission once user has deliberately entered a room
+
+
+  // Request permission via ref — avoids TDZ from minifier renaming const
   useEffect(() => {
-    if (identity) requestPermission();
-  }, [identity, requestPermission]);
+    if (identity) permReqRef.current?.();
+  }, [identity]);
 
   useEffect(() => {
     const remembered = getRememberedRoom(roomId);
@@ -222,7 +228,7 @@ export default function Room() {
   }, [gamesOpen]);
 
   const chat = useChatRoom(roomId, identity);
-  const { notify: pushNotify, requestPermission } = useNotifications();
+
   const viewportHeight = useViewportHeight();
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────

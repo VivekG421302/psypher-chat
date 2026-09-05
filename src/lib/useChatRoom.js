@@ -20,7 +20,8 @@ export function useChatRoom(roomId, identity) {
     const socket = getSocket();
     socketRef.current = socket;
 
-    async function decryptIncoming(msg) {
+    // All handlers use const arrow functions to avoid TDZ from function hoisting
+    const decryptIncoming = async (msg) => {
       const text = await decryptText(msg.ciphertext, roomId);
       return {
         id: msg.id, kind: 'message',
@@ -31,108 +32,114 @@ export function useChatRoom(roomId, identity) {
         reactions: msg.reactions || {},
         replyTo: msg.replyTo || null,
       };
-    }
+    };
 
-    function join() {
+    // Wrap in an object so esbuild can't reorder individual const assignments
+    // causing TDZ (Cannot access 'X' before initialization)
+    const handlers = {};
+    handlers.join = () => {
       socket.emit('room:join', {
         roomId, userId: identity.userId, name: identity.name, color: identity.color,
       });
-    }
+    };
 
-    function onJoined(payload) {
+    const onJoined = (payload) => {
       setStatus('joined');
       setConnected(true);
       setMembers(payload.room.members);
-      // Full history replay on (re)join, including reconnects
       Promise.all(payload.messages.map(decryptIncoming)).then(msgs => {
         setMessages(msgs);
-        // Mark all existing messages as seen
         const latestTs = msgs.reduce((max, m) => Math.max(max, m.ts || 0), 0);
         if (latestTs) socket.emit('chat:seen', { roomId, upToTs: latestTs });
       });
-      // Save to storage on every successful join
       rememberRoom(roomId, { userId: identity.userId, name: identity.name });
-    }
+    };
 
-    function onError(payload) {
+    const onError = (payload) => {
       setStatus(payload.code === 'full' ? 'full' : 'not_found');
-    }
+    };
 
-    function onMemberUpdate(payload) { setMembers(payload.members); }
-    function onSystem(payload) {
+    const onMemberUpdate = (payload) => { setMembers(payload.members); };
+
+    const onSystem = (payload) => {
       setMessages(prev => [...prev, { id: payload.id, kind: 'system', text: payload.text, ts: payload.ts }]);
-    }
-    async function onMessage(msg) {
+    };
+
+    const onMessage = (msg) => {
       decryptIncoming(msg).then(d => setMessages(prev => [...prev, d]));
-    }
-    async function onEdited(payload) {
+    };
+
+    const onEdited = async (payload) => {
       const text = await decryptText(payload.ciphertext, roomId);
       setMessages(prev => prev.map(m =>
         m.id === payload.messageId && m.kind === 'message'
           ? { ...m, text: text ?? m.text, failed: text === null, edited: true, editedAt: payload.editedAt }
           : m
       ));
-    }
-    function onDeleted(payload) {
+    };
+
+    const onDeleted = (payload) => {
       setMessages(prev => prev.map(m =>
         m.id === payload.messageId ? { id: m.id, kind: 'deleted', ts: m.ts, mine: m.mine } : m
       ));
-    }
-    function onReaction(payload) {
+    };
+
+    const onReaction = (payload) => {
       setMessages(prev => prev.map(m =>
         m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m
       ));
-    }
-    function onGameReaction(payload) {
+    };
+
+    const onGameReaction = (payload) => {
       setGameReactions(prev => [...prev.slice(-8), payload]);
-    }
-    function onSeen({ byUserId, upToTs }) {
+    };
+
+    const onSeen = ({ byUserId, upToTs }) => {
       if (byUserId !== identity.userId) {
         setOpponentSeenUpTo(prev => Math.max(prev, upToTs));
       }
-    }
-    function onTyping(payload) {
+    };
+
+    const onTyping = (payload) => {
       if (payload.userId === identity.userId) return;
       setTypingUser(payload.isTyping ? payload.name : null);
       if (typingTimeout.current) clearTimeout(typingTimeout.current);
       if (payload.isTyping) typingTimeout.current = setTimeout(() => setTypingUser(null), 4000);
-    }
-    function onConnect() {
-      // Re-join room on every reconnect — this also re-syncs member list
-      join();
-    }
-    function onDisconnect() { setConnected(false); }
+    };
 
-    socket.on('room:joined',        onJoined);
-    socket.on('room:error',         onError);
-    socket.on('room:member_update', onMemberUpdate);
-    socket.on('room:system',        onSystem);
-    socket.on('chat:message',       onMessage);
-    socket.on('chat:message_edited',onEdited);
+    const onConnect = () => { handlers.join(); };
+    const onDisconnect = () => { setConnected(false); };
+
+    socket.on('room:joined',         onJoined);
+    socket.on('room:error',          onError);
+    socket.on('room:member_update',  onMemberUpdate);
+    socket.on('room:system',         onSystem);
+    socket.on('chat:message',        onMessage);
+    socket.on('chat:message_edited', onEdited);
     socket.on('chat:message_deleted',onDeleted);
-    socket.on('chat:reaction',      onReaction);
-    socket.on('room:reaction',      onGameReaction);
-    socket.on('chat:seen',          onSeen);
-    socket.on('chat:typing',        onTyping);
-    socket.on('connect',            onConnect);
-    socket.on('disconnect',         onDisconnect);
+    socket.on('chat:reaction',       onReaction);
+    socket.on('room:reaction',       onGameReaction);
+    socket.on('chat:seen',           onSeen);
+    socket.on('chat:typing',         onTyping);
+    socket.on('connect',             onConnect);
+    socket.on('disconnect',          onDisconnect);
 
-    if (socket.connected) join();
+    if (socket.connected) handlers.join();
 
     return () => {
-      socket.off('room:joined',        onJoined);
-      socket.off('room:error',         onError);
-      socket.off('room:member_update', onMemberUpdate);
-      socket.off('room:system',        onSystem);
-      socket.off('chat:message',       onMessage);
-      socket.off('chat:message_edited',onEdited);
+      socket.off('room:joined',         onJoined);
+      socket.off('room:error',          onError);
+      socket.off('room:member_update',  onMemberUpdate);
+      socket.off('room:system',         onSystem);
+      socket.off('chat:message',        onMessage);
+      socket.off('chat:message_edited', onEdited);
       socket.off('chat:message_deleted',onDeleted);
-      socket.off('chat:reaction',      onReaction);
-      socket.off('room:reaction',      onGameReaction);
-      socket.off('chat:seen',          onSeen);
-      socket.off('chat:typing',        onTyping);
-      socket.off('connect',            onConnect);
-      socket.off('disconnect',         onDisconnect);
+      socket.off('chat:reaction',       onReaction);
+      socket.off('room:reaction',       onGameReaction);
+      socket.off('chat:seen',           onSeen);
+      socket.off('chat:typing',         onTyping);
+      socket.off('connect',             onConnect);
+      socket.off('disconnect',          onDisconnect);
       if (typingTimeout.current) clearTimeout(typingTimeout.current);
       socket.disconnect();
       socketRef.current = null;
@@ -151,12 +158,12 @@ export function useChatRoom(roomId, identity) {
     socketRef.current.emit('chat:edit', { roomId, messageId, ciphertext });
   }, [roomId]);
 
-  const deleteMessage   = useCallback((messageId) => socketRef.current?.emit('chat:delete',  { roomId, messageId }), [roomId]);
-  const reactToMessage  = useCallback((messageId, emoji) => socketRef.current?.emit('chat:react', { roomId, messageId, emoji }), [roomId]);
-  const sendGameReaction= useCallback((emoji) => socketRef.current?.emit('room:react', { roomId, emoji }), [roomId]);
-  const setTyping       = useCallback((isTyping) => socketRef.current?.emit('chat:typing', { roomId, isTyping }), [roomId]);
-  const leaveRoom       = useCallback(() => socketRef.current?.emit('room:leave'), []);
-  const markSeen        = useCallback((ts) => socketRef.current?.emit('chat:seen', { roomId, upToTs: ts }), [roomId]);
+  const deleteMessage    = useCallback((messageId) => socketRef.current?.emit('chat:delete',  { roomId, messageId }), [roomId]);
+  const reactToMessage   = useCallback((messageId, emoji) => socketRef.current?.emit('chat:react', { roomId, messageId, emoji }), [roomId]);
+  const sendGameReaction = useCallback((emoji) => socketRef.current?.emit('room:react', { roomId, emoji }), [roomId]);
+  const setTyping        = useCallback((isTyping) => socketRef.current?.emit('chat:typing', { roomId, isTyping }), [roomId]);
+  const markSeen         = useCallback((ts) => socketRef.current?.emit('chat:seen', { roomId, upToTs: ts }), [roomId]);
+  const leaveRoom        = useCallback(() => socketRef.current?.emit('room:leave'), []);
 
   const notifyLocal = useCallback((text, extraFields = {}) => {
     setMessages(prev => [...prev, {
@@ -165,7 +172,6 @@ export function useChatRoom(roomId, identity) {
     }]);
   }, []);
 
-  // Update an existing local message (e.g. update game-invite card with winner)
   const updateLocal = useCallback((predicate, patch) => {
     setMessages(prev => prev.map(m => predicate(m) ? { ...m, ...patch } : m));
   }, []);

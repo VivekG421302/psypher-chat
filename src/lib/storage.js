@@ -114,6 +114,10 @@ function openIdb() {
 }
 
 async function idbPut(record) {
+  if (!record || typeof record.roomId !== 'string' || !record.roomId) {
+    console.warn('[psypher/storage] idbPut skipped: record missing roomId', record);
+    return;
+  }
   try {
     const db = await openIdb();
     const tx = db.transaction(IDB_STORE, 'readwrite');
