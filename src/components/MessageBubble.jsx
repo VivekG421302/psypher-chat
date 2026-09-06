@@ -25,22 +25,60 @@ function fileTypeIcon(mime) {
 
 function FileCard({ text, mine }) {
   // [file]mime|name|dataUrl
-  const raw   = text.slice('[file]'.length);
-  const first = raw.indexOf('|');
+  const raw    = text.slice('[file]'.length);
+  const first  = raw.indexOf('|');
   const second = raw.indexOf('|', first + 1);
   const mime    = raw.slice(0, first);
   const name    = raw.slice(first + 1, second);
   const dataUrl = raw.slice(second + 1);
   const Icon    = fileTypeIcon(mime);
   const ext     = name.split('.').pop()?.toUpperCase() || 'FILE';
+  const isAudio = mime.startsWith('audio/');
+  const isVideo = mime.startsWith('video/');
 
   function download() {
-    const a  = document.createElement('a');
-    a.href   = dataUrl;
-    a.download = name;
-    a.click();
+    const a = document.createElement('a');
+    a.href = dataUrl; a.download = name; a.click();
   }
 
+  // ── Audio: inline player ──────────────────────────────────────────────────
+  if (isAudio) {
+    return (
+      <div className={`rounded-2xl px-3 py-2.5 min-w-[220px] max-w-xs ${mine ? 'bg-ink-950/20' : 'bg-ink-800/60'}`}>
+        <div className="flex items-center gap-2 mb-2">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${mine ? 'bg-ink-950/40' : 'bg-ink-700'}`}>
+            <Music size={14} className={mine ? 'text-cipher-300' : 'text-cipher-400'} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-xs font-medium truncate ${mine ? 'text-ink-100' : 'text-mist-100'}`}>{name}</p>
+            <p className={`text-[10px] ${mine ? 'text-ink-400' : 'text-mist-600'}`}>Voice note</p>
+          </div>
+        </div>
+        <audio
+          controls
+          src={dataUrl}
+          className="w-full h-8"
+          style={{ colorScheme: 'dark' }}
+          preload="metadata"
+        />
+      </div>
+    );
+  }
+
+  // ── Video: inline player ───────────────────────────────────────────────────
+  if (isVideo) {
+    return (
+      <div className="rounded-xl overflow-hidden max-w-xs">
+        <video controls src={dataUrl} className="w-full max-h-48 object-contain bg-black" preload="metadata" />
+        <div className={`flex items-center justify-between px-2 py-1.5 ${mine ? 'bg-ink-950/20' : 'bg-ink-800/60'}`}>
+          <p className={`text-[10px] truncate ${mine ? 'text-ink-300' : 'text-mist-400'}`}>{name}</p>
+          <button onClick={download} className="text-mist-500 hover:text-mist-100 cursor-pointer ml-2 shrink-0"><Download size={12} /></button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Generic file ───────────────────────────────────────────────────────────
   return (
     <div className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 min-w-[180px] ${mine ? 'bg-ink-950/20' : 'bg-ink-800/60'}`}>
       <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${mine ? 'bg-ink-950/30' : 'bg-ink-700'}`}>
@@ -52,7 +90,7 @@ function FileCard({ text, mine }) {
       </div>
       <button onClick={download}
         className={`p-1.5 rounded-lg cursor-pointer transition-colors ${mine ? 'hover:bg-ink-950/30 text-ink-300' : 'hover:bg-ink-700 text-mist-400 hover:text-mist-100'}`}
-        title="Download" aria-label="Download file">
+        title="Download">
         <Download size={14} />
       </button>
     </div>
