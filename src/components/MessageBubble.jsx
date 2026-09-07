@@ -98,6 +98,16 @@ function FileCard({ text, mine }) {
 }
 
 function RichText({ text, mine }) {
+  if (text?.startsWith('[gif]')) {
+    return (
+      <img
+        src={text.slice('[gif]'.length)}
+        alt="GIF"
+        className="max-w-full rounded-xl max-h-52 object-contain"
+        loading="lazy"
+      />
+    );
+  }
   if (text?.startsWith('[file]')) {
     return <FileCard text={text} mine={mine} />;
   }
@@ -215,7 +225,7 @@ export default function MessageBubble({
 
   const reactionEntries = Object.entries(m.reactions || {}).filter(([, users]) => users.length > 0);
   const isImage = m.text?.startsWith('[image]data:image');
-  const isFile  = m.text?.startsWith('[file]');
+  const isFile  = m.text?.startsWith('[file]') || m.text?.startsWith('[gif]');
 
   function handleClick() {
     if (longPress.didLongPress()) return;

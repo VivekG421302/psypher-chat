@@ -294,11 +294,18 @@ export default function MessageInput({
     refreshEmpty();
   };
 
-  const insertEmoji = (emoji) => {
+  const insertEmoji = (val) => {
+    // GIF from picker — send directly as a message
+    if (val.startsWith('[gif]')) {
+      onSend(val, replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text } : null);
+      onCancelReply?.();
+      setPickerOpen(false);
+      return;
+    }
     const el = editorRef.current; if (!el) return;
     el.focus();
     const range = getRange(); range.deleteContents();
-    const node = document.createTextNode(emoji);
+    const node = document.createTextNode(val);
     range.insertNode(node);
     const r = document.createRange(); r.setStartAfter(node); r.collapse(true);
     window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
@@ -415,7 +422,7 @@ export default function MessageInput({
             <p className="text-[10px] font-semibold text-signal-400">{replyingTo.senderName}</p>
             <p className="text-xs text-mist-500 truncate">
               {replyingTo.text?.startsWith('[image]') ? '📷 Image'
-                : replyingTo.text?.startsWith('[file]') ? '📎 File'
+                : replyingTo.text?.startsWith('[file]') ? '📎 File' : replyingTo.text?.startsWith('[gif]') ? '🎞️ GIF'
                 : replyingTo.text}
             </p>
           </div>
