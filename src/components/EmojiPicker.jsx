@@ -6,8 +6,10 @@ const RECENTS_KEY = 'psypher.recentEmoji';
 const MAX_RECENTS = 24;
 
 // Giphy public beta key — works for demo/personal apps
-const GIPHY_KEY = 'dc6zaTOxFJmzC';
-const GIPHY_LIMIT = 24;
+// Tenor v2 anonymous test key (official from Tenor/Google docs)
+const TENOR_KEY   = 'LIVDSRZULELA';
+const TENOR_CLIENT = 'psypher_chat';
+const GIF_LIMIT   = 24;
 
 const CATEGORIES = [
   { id: 'smileys',    label: 'Smileys',            icon: SmileyIcon,
@@ -48,14 +50,24 @@ function GifTab({ onPick }) {
     setLoading(true);
     setError(null);
     try {
+      const base = 'https://tenor.googleapis.com/v2';
+      const params = `key=${TENOR_KEY}&client_key=${TENOR_CLIENT}&limit=${GIF_LIMIT}&media_filter=gif`;
       const endpoint = q.trim()
-        ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=${GIPHY_LIMIT}&rating=pg-13`
-        : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=${GIPHY_LIMIT}&rating=pg-13`;
+        ? `${base}/search?q=${encodeURIComponent(q)}&${params}`
+        : `${base}/featured?${params}`;
       const res  = await fetch(endpoint);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      setGifs(json.data || []);
-    } catch {
-      setError('Could not load GIFs. Check your connection.');
+      // Tenor v2: results array with .media_formats.gif.url and .media_formats.tinygif.url
+      const items = (json.results || []).map(r => ({
+        id:      r.id,
+        title:   r.title || '',
+        preview: r.media_formats?.tinygif?.url || r.media_formats?.gif?.url || '',
+        full:    r.media_formats?.gif?.url || '',
+      })).filter(r => r.preview && r.full);
+      setGifs(items);
+    } catch (err) {
+      setError('Could not load GIFs — ' + (err.message || 'check connection'));
     } finally {
       setLoading(false);
     }
@@ -108,31 +120,26 @@ function GifTab({ onPick }) {
         {!loading && !error && gifs.length > 0 && (
           /* 2-column masonry grid */
           <div className="columns-2 gap-1.5 space-y-1.5">
-            {gifs.map((gif) => {
-              const preview = gif.images?.fixed_height_small?.url || gif.images?.preview_gif?.url;
-              const full    = gif.images?.downsized?.url || gif.images?.fixed_height?.url;
-              if (!preview || !full) return null;
-              return (
-                <button
-                  key={gif.id}
-                  type="button"
-                  onClick={() => onPick(`[gif]${full}`)}
-                  className="w-full break-inside-avoid rounded-lg overflow-hidden cursor-pointer hover:opacity-80 active:scale-95 transition-all block"
-                >
-                  <img
-                    src={preview}
-                    alt={gif.title || 'GIF'}
-                    className="w-full h-auto object-cover"
-                    loading="lazy"
-                  />
-                </button>
-              );
-            })}
+            {gifs.map((gif) => (
+              <button
+                key={gif.id}
+                type="button"
+                onClick={() => onPick(`[gif]${gif.full}`)}
+                className="w-full break-inside-avoid rounded-lg overflow-hidden cursor-pointer hover:opacity-80 active:scale-95 transition-all block"
+              >
+                <img
+                  src={gif.preview}
+                  alt={gif.title || 'GIF'}
+                  className="w-full h-auto object-cover"
+                  loading="lazy"
+                />
+              </button>
+            ))}
           </div>
         )}
         {/* Giphy attribution (required by their ToS) */}
         {!loading && gifs.length > 0 && (
-          <p className="text-center text-[10px] text-mist-700 pt-2 pb-1">Powered by GIPHY</p>
+          <p className="text-center text-[10px] text-mist-700 pt-2 pb-1">Powered by Tenor</p>
         )}
       </div>
     </div>
