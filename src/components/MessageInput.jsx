@@ -28,24 +28,13 @@ function fileIcon(mime) {
 
 // ── Attachment preview ────────────────────────────────────────────────────────
 function AttachmentPreview({ file, onRemove }) {
-  const isImage = file.mime?.startsWith('image/');
-  const isAudio = file.mime?.startsWith('audio/');
-  const isVideo = file.mime?.startsWith('video/');
+  const isImage = file.isImage || file.mime?.startsWith('image/');
+  const isAudio = file.isAudio || file.mime?.startsWith('audio/');
+  const isVideo = file.isVideo || file.mime?.startsWith('video/');
   const Icon = fileIcon(file.mime);
 
-  // Create a Blob URL for video thumbnail
-  const videoSrc = isVideo ? (() => {
-    try {
-      if (file.dataUrl?.startsWith('data:')) {
-        const arr = file.dataUrl.split(',');
-        const bstr = atob(arr[1]);
-        const u8 = new Uint8Array(bstr.length);
-        for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
-        return URL.createObjectURL(new Blob([u8], { type: file.mime }));
-      }
-    } catch { /**/ }
-    return file.dataUrl;
-  })() : null;
+  // For video: dataUrl is already a Blob URL (blobPreview=true) or base64
+  const videoSrc = isVideo ? file.dataUrl : null;
 
   return (
     <div className="mb-2 flex items-center gap-2.5 bg-ink-800 rounded-xl px-3 py-2 border border-ink-600">
@@ -185,6 +174,7 @@ export default function MessageInput({
   const [selToolbar,  setSelToolbar]  = useState(false);
   const [recording,   setRecording]   = useState(false);
   const [recSecs,     setRecSecs]     = useState(0);
+  const [fileLoading, setFileLoading] = useState(false);
 
   const editorRef       = useRef(null);
   const typingActive    = useRef(false);
@@ -333,15 +323,46 @@ export default function MessageInput({
   };
 
   const loadFile = (file) => {
-    if (file.size > MAX_BYTES) { alert(`File too large. Max ${MAX_FILE_MB} MB.`); return; }
-    const reader = new FileReader();
-    reader.onload = ev => setPendingFile({
-      name: file.name, mime: file.type || 'application/octet-stream',
-      size: file.size, dataUrl: ev.target.result,
-      isImage: (file.type || '').startsWith('image/'),
-      isAudio: (file.type || '').startsWith('audio/'),
-    });
-    reader.readAsDataURL(file);
+    if (!file) return;
+    const isVideo = (file.type || '').startsWith('video/');
+
+    // For video: enforce a tighter limit (50MB raw = ~67MB base64 — too large for socket)
+    const videoLimit = 50 * 1024 * 1024;
+    const limit = isVideo ? videoLimit : MAX_BYTES;
+    if (file.size > limit) {
+      alert(`File too large. Max ${isVideo ? '50' : MAX_FILE_MB} MB.`);
+      return;
+    }
+
+    setFileLoading(true);
+
+    if (isVideo) {
+      // For video: use Blob URL for preview; read as base64 for sending
+      const previewUrl = URL.createObjectURL(file);
+      // Show preview immediately
+      setPendingFile({
+        name: file.name, mime: file.type,
+        size: file.size, dataUrl: previewUrl,
+        blobPreview: true, // flag: this is a Blob URL, not base64 yet
+        rawFile: file,     // keep raw file for sending
+        isImage: false, isAudio: false, isVideo: true,
+      });
+      setFileLoading(false);
+    } else {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        setPendingFile({
+          name: file.name, mime: file.type || 'application/octet-stream',
+          size: file.size, dataUrl: ev.target.result,
+          isImage: (file.type || '').startsWith('image/'),
+          isAudio: (file.type || '').startsWith('audio/'),
+          isVideo: false,
+        });
+        setFileLoading(false);
+      };
+      reader.onerror = () => { alert('Could not read file.'); setFileLoading(false); };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleFileInput = (e) => { const f = e.target.files?.[0]; if (f) loadFile(f); e.target.value = ''; };
@@ -422,11 +443,27 @@ export default function MessageInput({
     if (recording) { stopRecording(); return; }
     const reply = replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text } : null;
     if (pendingFile) {
-      const msg = pendingFile.isImage
-        ? `[image]${pendingFile.dataUrl}`
-        : `[file]${pendingFile.mime}|${pendingFile.name}|${pendingFile.dataUrl}`;
-      onSend(msg, reply);
-      setPendingFile(null); onCancelReply?.(); clearEditor(); return;
+      const doSend = (dataUrl) => {
+        const msg = pendingFile.isImage
+          ? `[image]${dataUrl}`
+          : `[file]${pendingFile.mime}|${pendingFile.name}|${dataUrl}`;
+        onSend(msg, reply);
+        setPendingFile(null); onCancelReply?.(); clearEditor();
+        setFileLoading(false);
+      };
+
+      if (pendingFile.blobPreview && pendingFile.rawFile) {
+        // Video: need to convert raw File to base64 now
+        setFileLoading(true);
+        const reader = new FileReader();
+        reader.onload = ev => doSend(ev.target.result);
+        reader.onerror = () => { alert('Failed to read video.'); setFileLoading(false); };
+        reader.readAsDataURL(pendingFile.rawFile);
+        return;
+      }
+
+      doSend(pendingFile.dataUrl);
+      return;
     }
     const markdown = editorRef.current ? domToMarkdown(editorRef.current).trim() : '';
     if (!markdown) return;
@@ -465,10 +502,18 @@ export default function MessageInput({
         </div>
       )}
 
+      {/* Loading indicator when reading file */}
+      {fileLoading && (
+        <div className="px-4 pt-2 flex items-center gap-2 text-xs text-mist-500">
+          <div className="w-3 h-3 border border-mist-600 border-t-mist-300 rounded-full animate-spin" />
+          Reading file…
+        </div>
+      )}
+
       {/* Pending file preview */}
-      {pendingFile && !recording && (
+      {pendingFile && !recording && !fileLoading && (
         <div className="px-3 pt-2">
-          <AttachmentPreview file={pendingFile} onRemove={() => setPendingFile(null)} />
+          <AttachmentPreview file={pendingFile} onRemove={() => { setPendingFile(null); }} />
         </div>
       )}
 
