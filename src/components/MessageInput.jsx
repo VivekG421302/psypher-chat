@@ -10,7 +10,7 @@ import CameraModal from './CameraModal.jsx';
 import { domToMarkdown, markdownToHtml, autoFormatEmphasis, startNumberedListIfMatched } from '../lib/richText.jsx';
 
 const MAX_LENGTH  = 1000;
-const MAX_FILE_MB = 5;
+const MAX_FILE_MB = 20;
 const MAX_BYTES   = MAX_FILE_MB * 1024 * 1024;
 
 function humanSize(bytes) {
@@ -30,11 +30,36 @@ function fileIcon(mime) {
 function AttachmentPreview({ file, onRemove }) {
   const isImage = file.mime?.startsWith('image/');
   const isAudio = file.mime?.startsWith('audio/');
+  const isVideo = file.mime?.startsWith('video/');
   const Icon = fileIcon(file.mime);
+
+  // Create a Blob URL for video thumbnail
+  const videoSrc = isVideo ? (() => {
+    try {
+      if (file.dataUrl?.startsWith('data:')) {
+        const arr = file.dataUrl.split(',');
+        const bstr = atob(arr[1]);
+        const u8 = new Uint8Array(bstr.length);
+        for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+        return URL.createObjectURL(new Blob([u8], { type: file.mime }));
+      }
+    } catch { /**/ }
+    return file.dataUrl;
+  })() : null;
+
   return (
     <div className="mb-2 flex items-center gap-2.5 bg-ink-800 rounded-xl px-3 py-2 border border-ink-600">
       {isImage ? (
         <img src={file.dataUrl} alt="preview" className="w-12 h-12 object-cover rounded-lg shrink-0" />
+      ) : isVideo ? (
+        <div className="w-12 h-12 rounded-lg overflow-hidden bg-black shrink-0 relative">
+          <video src={videoSrc} className="w-full h-full object-cover" preload="metadata" muted playsInline />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-5 h-5 rounded-full bg-black/50 flex items-center justify-center">
+              <Video size={10} className="text-white ml-0.5" />
+            </div>
+          </div>
+        </div>
       ) : isAudio ? (
         <div className="w-12 h-12 rounded-lg bg-cipher-700/30 border border-cipher-600/40 flex items-center justify-center shrink-0">
           <Mic size={20} className="text-cipher-400" />

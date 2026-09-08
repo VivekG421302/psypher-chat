@@ -54,25 +54,61 @@ function FileCard({ text, mine }) {
             <p className={`text-[10px] ${mine ? 'text-ink-400' : 'text-mist-600'}`}>Voice note</p>
           </div>
         </div>
-        <audio
-          controls
-          src={dataUrl}
-          className="w-full h-8"
-          style={{ colorScheme: 'dark' }}
-          preload="metadata"
-        />
+        {(() => {
+          let src = dataUrl;
+          try {
+            if (dataUrl.startsWith('data:')) {
+              const arr = dataUrl.split(',');
+              const bstr = atob(arr[1]);
+              const u8 = new Uint8Array(bstr.length);
+              for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+              src = URL.createObjectURL(new Blob([u8], { type: mime }));
+            }
+          } catch { src = dataUrl; }
+          return (
+            <audio controls src={src} className="w-full h-8"
+              style={{ colorScheme: 'dark' }} preload="metadata" />
+          );
+        })()}
       </div>
     );
   }
 
-  // ── Video: inline player ───────────────────────────────────────────────────
+  // ── Video: inline player with Blob URL for proper seeking ───────────────────
   if (isVideo) {
+    // Convert base64 dataUrl → Blob URL so browser can seek/buffer properly
+    let blobUrl = dataUrl;
+    try {
+      if (dataUrl.startsWith('data:')) {
+        const arr = dataUrl.split(',');
+        const bstr = atob(arr[1]);
+        const u8 = new Uint8Array(bstr.length);
+        for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+        const blob = new Blob([u8], { type: mime });
+        blobUrl = URL.createObjectURL(blob);
+      }
+    } catch { blobUrl = dataUrl; }
+
     return (
-      <div className="rounded-xl overflow-hidden max-w-xs">
-        <video controls src={dataUrl} className="w-full max-h-48 object-contain bg-black" preload="metadata" />
-        <div className={`flex items-center justify-between px-2 py-1.5 ${mine ? 'bg-ink-950/20' : 'bg-ink-800/60'}`}>
-          <p className={`text-[10px] truncate ${mine ? 'text-ink-300' : 'text-mist-400'}`}>{name}</p>
-          <button onClick={download} className="text-mist-500 hover:text-mist-100 cursor-pointer ml-2 shrink-0"><Download size={12} /></button>
+      <div className="rounded-2xl overflow-hidden max-w-[280px] w-full bg-black">
+        <video
+          controls
+          src={blobUrl}
+          className="w-full max-h-56 object-contain bg-black block"
+          preload="metadata"
+          playsInline
+          style={{ display: 'block' }}
+        />
+        <div className={`flex items-center justify-between px-3 py-2 ${mine ? 'bg-ink-950/30' : 'bg-ink-800/70'}`}>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Video size={11} className={mine ? 'text-ink-400 shrink-0' : 'text-mist-500 shrink-0'} />
+            <p className={`text-[10px] truncate ${mine ? 'text-ink-300' : 'text-mist-400'}`}>{name}</p>
+          </div>
+          <button onClick={download}
+            className="text-mist-500 hover:text-mist-100 cursor-pointer ml-2 shrink-0 transition-colors"
+            title="Download">
+            <Download size={12} />
+          </button>
         </div>
       </div>
     );
