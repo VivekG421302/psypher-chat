@@ -24,6 +24,52 @@ function fileTypeIcon(mime) {
 }
 
 
+// ── Video player — proper Blob URL lifecycle with useEffect ───────────────────
+function VideoPlayer({ dataUrl, mime, name, mine, download }) {
+  const [blobUrl, setBlobUrl] = useState(null);
+
+  useEffect(() => {
+    let url = null;
+    try {
+      if (dataUrl?.startsWith('data:')) {
+        const arr   = dataUrl.split(',');
+        const bstr  = atob(arr[1]);
+        const u8    = new Uint8Array(bstr.length);
+        for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+        url = URL.createObjectURL(new Blob([u8], { type: mime }));
+      } else {
+        url = dataUrl;
+      }
+    } catch { url = dataUrl; }
+    setBlobUrl(url);
+    return () => { if (url?.startsWith('blob:')) URL.revokeObjectURL(url); };
+  }, [dataUrl, mime]);
+
+  return (
+    <div className="rounded-2xl overflow-hidden max-w-[280px] w-full bg-black">
+      {blobUrl ? (
+        <video controls src={blobUrl} playsInline preload="metadata"
+          className="w-full max-h-56 bg-black block" style={{ display: 'block' }} />
+      ) : (
+        <div className="w-full h-32 flex items-center justify-center bg-ink-900">
+          <div className="w-6 h-6 border-2 border-mist-600 border-t-mist-300 rounded-full animate-spin" />
+        </div>
+      )}
+      <div className={`flex items-center justify-between px-3 py-2 ${mine ? 'bg-ink-950/30' : 'bg-ink-800/70'}`}>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Video size={11} className={mine ? 'text-ink-400 shrink-0' : 'text-mist-500 shrink-0'} />
+          <p className={`text-[10px] truncate ${mine ? 'text-ink-300' : 'text-mist-400'}`}>{name}</p>
+        </div>
+        <button onClick={download}
+          className="text-mist-500 hover:text-mist-100 cursor-pointer ml-2 shrink-0 transition-colors">
+          <Download size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 // ── Voice note player ─────────────────────────────────────────────────────────
 function VoiceNotePlayer({ dataUrl, mime, mine }) {
   const audioRef  = useRef(null);
@@ -166,44 +212,9 @@ function FileCard({ text, mine }) {
     return <VoiceNotePlayer dataUrl={dataUrl} mime={mime} mine={mine} />;
   }
 
-  // ── Video: inline player with Blob URL for proper seeking ───────────────────
+  // ── Video: component with proper Blob URL lifecycle ──────────────────────────
   if (isVideo) {
-    // Convert base64 dataUrl → Blob URL so browser can seek/buffer properly
-    let blobUrl = dataUrl;
-    try {
-      if (dataUrl.startsWith('data:')) {
-        const arr = dataUrl.split(',');
-        const bstr = atob(arr[1]);
-        const u8 = new Uint8Array(bstr.length);
-        for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
-        const blob = new Blob([u8], { type: mime });
-        blobUrl = URL.createObjectURL(blob);
-      }
-    } catch { blobUrl = dataUrl; }
-
-    return (
-      <div className="rounded-2xl overflow-hidden max-w-[280px] w-full bg-black">
-        <video
-          controls
-          src={blobUrl}
-          className="w-full max-h-56 object-contain bg-black block"
-          preload="metadata"
-          playsInline
-          style={{ display: 'block' }}
-        />
-        <div className={`flex items-center justify-between px-3 py-2 ${mine ? 'bg-ink-950/30' : 'bg-ink-800/70'}`}>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Video size={11} className={mine ? 'text-ink-400 shrink-0' : 'text-mist-500 shrink-0'} />
-            <p className={`text-[10px] truncate ${mine ? 'text-ink-300' : 'text-mist-400'}`}>{name}</p>
-          </div>
-          <button onClick={download}
-            className="text-mist-500 hover:text-mist-100 cursor-pointer ml-2 shrink-0 transition-colors"
-            title="Download">
-            <Download size={12} />
-          </button>
-        </div>
-      </div>
-    );
+    return <VideoPlayer dataUrl={dataUrl} mime={mime} name={name} mine={mine} download={download} />;
   }
 
   // ── Generic file ───────────────────────────────────────────────────────────
@@ -230,9 +241,9 @@ function RichText({ text, mine }) {
   if (text?.startsWith('[gif]')) {
     return (
       <img src={text.slice(5)} alt="GIF"
-        className="max-w-full rounded-xl max-h-56 object-contain cursor-pointer"
+        className="max-w-full rounded-xl max-h-56 object-contain"
         loading="lazy"
-        onClick={() => window.open(text.slice(5), '_blank')}
+        draggable={false}
       />
     );
   }
@@ -242,16 +253,11 @@ function RichText({ text, mine }) {
   }
   // Image (base64 or URL)
   if (text?.startsWith('[image]')) {
-    const src = text.slice(7);
     return (
-      <img src={src} alt="Image"
-        className="max-w-full rounded-xl max-h-64 object-contain cursor-pointer"
+      <img src={text.slice(7)} alt="Image"
+        className="max-w-full rounded-xl max-h-64 object-contain"
         loading="lazy"
-        onClick={() => {
-          // Open full size in new tab
-          const w = window.open();
-          w.document.write(`<img src="${src}" style="max-width:100%;max-height:100vh;" />`);
-        }}
+        draggable={false}
       />
     );
   }

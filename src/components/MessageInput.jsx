@@ -127,20 +127,42 @@ function AttachDrawer({ onFile, onCamera, onClose }) {
   );
 }
 
-// ── Voice waveform animation ──────────────────────────────────────────────────
-function VoiceWaveform({ seconds }) {
-  const BAR_COUNT = 20;
+// ── Real-time voice waveform from AudioAnalyser ──────────────────────────────
+function VoiceWaveform({ seconds, analyserRef }) {
+  const BAR_COUNT = 24;
+  const [bars, setBars] = useState(() => Array(BAR_COUNT).fill(4));
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const analyser = analyserRef?.current;
+    if (!analyser) return undefined;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const step = () => {
+      analyser.getByteFrequencyData(data);
+      const chunk = Math.floor(data.length / BAR_COUNT);
+      const next = Array.from({ length: BAR_COUNT }, (_, i) => {
+        let sum = 0;
+        for (let j = 0; j < chunk; j++) sum += data[i * chunk + j];
+        const avg = sum / chunk;
+        // Map 0-255 → 4-32px
+        return Math.max(4, Math.round((avg / 255) * 28 + 4));
+      });
+      setBars(next);
+      rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [analyserRef]);
+
   return (
     <div className="flex-1 flex items-center gap-1 px-2">
       <span className="text-xs text-red-400 font-mono w-10 shrink-0">
         {`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`}
       </span>
-      <div className="flex items-center gap-[2px] flex-1">
-        {Array.from({ length: BAR_COUNT }).map((_, i) => (
-          <motion.div key={i} className="w-1 rounded-full bg-red-400"
-            animate={{ height: ['4px', `${8 + (i * 7 % 17)}px`, '4px'] }}
-            transition={{ duration: 0.4 + (i % 5) * 0.08, repeat: Infinity, delay: i * 0.04, ease: 'easeInOut' }}
-          />
+      <div className="flex items-center gap-[2px] flex-1 h-8">
+        {bars.map((h, i) => (
+          <div key={i} className="w-[3px] rounded-full bg-red-400 transition-none"
+            style={{ height: `${h}px` }} />
         ))}
       </div>
       <motion.div className="w-2 h-2 rounded-full bg-red-500 shrink-0"
@@ -172,6 +194,8 @@ export default function MessageInput({
   const mediaRecRef     = useRef(null);
   const recTimerRef     = useRef(null);
   const audioChunksRef  = useRef([]);
+  const analyserRef     = useRef(null);
+  const audioCtxRef     = useRef(null);
 
   const isEditing  = !!editingMessage;
   const hasContent = !isEmpty || !!pendingFile;
@@ -341,11 +365,24 @@ export default function MessageInput({
     if (!navigator.mediaDevices?.getUserMedia) { alert('Microphone not supported.'); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // Set up AudioContext + AnalyserNode for real-time waveform
+      const ctx      = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.6;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      audioCtxRef.current  = ctx;
+      analyserRef.current  = analyser;
+
       const mr = new MediaRecorder(stream);
       audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       mr.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
+        audioCtxRef.current?.close();
+        audioCtxRef.current = null;
+        analyserRef.current = null;
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         if (blob.size > MAX_BYTES) { alert(`Voice note too large (max ${MAX_FILE_MB} MB).`); return; }
         const reader = new FileReader();
@@ -373,6 +410,9 @@ export default function MessageInput({
     clearInterval(recTimerRef.current);
     mediaRecRef.current?.stream?.getTracks().forEach(t => t.stop());
     try { mediaRecRef.current?.stop(); } catch { /**/ }
+    audioCtxRef.current?.close();
+    audioCtxRef.current = null;
+    analyserRef.current = null;
     audioChunksRef.current = [];
     setRecording(false); setRecSecs(0);
   };
@@ -482,7 +522,7 @@ export default function MessageInput({
               <button type="button" onClick={cancelRecording} className="text-mist-500 hover:text-red-400 cursor-pointer shrink-0">
                 <X size={16} />
               </button>
-              <VoiceWaveform seconds={recSecs} />
+              <VoiceWaveform seconds={recSecs} analyserRef={analyserRef} />
             </div>
           ) : (
             <div className="relative">
