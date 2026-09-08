@@ -484,7 +484,7 @@ export default function MessageInput({
             whileTap={{ scale: 0.9 }}
             className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer transition-colors shadow-lg
               ${recording ? 'bg-red-500 hover:bg-red-400' : isEditing ? 'bg-cipher-500 hover:bg-cipher-400' : 'bg-signal-500 hover:bg-signal-400'}`}>
-            <Check size={20} className="text-white" />
+            {recording ? <Check size={20} className="text-white" /> : <Send size={20} className="text-white" />}
           </motion.button>
         ) : (
           /* Attach + Mic */

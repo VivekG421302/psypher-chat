@@ -98,27 +98,32 @@ function FileCard({ text, mine }) {
 }
 
 function RichText({ text, mine }) {
+  // GIF from Giphy
   if (text?.startsWith('[gif]')) {
     return (
-      <img
-        src={text.slice('[gif]'.length)}
-        alt="GIF"
-        className="max-w-full rounded-xl max-h-52 object-contain"
+      <img src={text.slice(5)} alt="GIF"
+        className="max-w-full rounded-xl max-h-56 object-contain cursor-pointer"
         loading="lazy"
+        onClick={() => window.open(text.slice(5), '_blank')}
       />
     );
   }
+  // File (audio / video / document)
   if (text?.startsWith('[file]')) {
     return <FileCard text={text} mine={mine} />;
   }
-  // Handle image messages
-  if (text?.startsWith('[image]data:image')) {
+  // Image (base64 or URL)
+  if (text?.startsWith('[image]')) {
+    const src = text.slice(7);
     return (
-      <img
-        src={text.slice('[image]'.length)}
-        alt="Shared image"
-        className="max-w-full rounded-lg max-h-56 object-contain"
+      <img src={src} alt="Image"
+        className="max-w-full rounded-xl max-h-64 object-contain cursor-pointer"
         loading="lazy"
+        onClick={() => {
+          // Open full size in new tab
+          const w = window.open();
+          w.document.write(`<img src="${src}" style="max-width:100%;max-height:100vh;" />`);
+        }}
       />
     );
   }

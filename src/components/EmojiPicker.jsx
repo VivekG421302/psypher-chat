@@ -6,10 +6,9 @@ const RECENTS_KEY = 'psypher.recentEmoji';
 const MAX_RECENTS = 24;
 
 // Giphy public beta key — works for demo/personal apps
-// Tenor v2 anonymous test key (official from Tenor/Google docs)
-const TENOR_KEY   = 'LIVDSRZULELA';
-const TENOR_CLIENT = 'psypher_chat';
-const GIF_LIMIT   = 24;
+// Giphy API key
+const GIPHY_KEY = '0oypooBOsHrDnvMr5A9zDTj1VuelTQ4s';
+const GIF_LIMIT = 24;
 
 const CATEGORIES = [
   { id: 'smileys',    label: 'Smileys',            icon: SmileyIcon,
@@ -50,20 +49,18 @@ function GifTab({ onPick }) {
     setLoading(true);
     setError(null);
     try {
-      const base = 'https://tenor.googleapis.com/v2';
-      const params = `key=${TENOR_KEY}&client_key=${TENOR_CLIENT}&limit=${GIF_LIMIT}&media_filter=gif`;
       const endpoint = q.trim()
-        ? `${base}/search?q=${encodeURIComponent(q)}&${params}`
-        : `${base}/featured?${params}`;
+        ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=${GIF_LIMIT}&rating=pg-13`
+        : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=${GIF_LIMIT}&rating=pg-13`;
       const res  = await fetch(endpoint);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      // Tenor v2: results array with .media_formats.gif.url and .media_formats.tinygif.url
-      const items = (json.results || []).map(r => ({
+      // Giphy: data array with .images.fixed_height_small.url (preview) and .images.downsized_medium.url (full)
+      const items = (json.data || []).map(r => ({
         id:      r.id,
         title:   r.title || '',
-        preview: r.media_formats?.tinygif?.url || r.media_formats?.gif?.url || '',
-        full:    r.media_formats?.gif?.url || '',
+        preview: r.images?.fixed_height_small?.url || r.images?.preview_gif?.url || '',
+        full:    r.images?.downsized_medium?.url || r.images?.fixed_height?.url || '',
       })).filter(r => r.preview && r.full);
       setGifs(items);
     } catch (err) {
@@ -139,7 +136,7 @@ function GifTab({ onPick }) {
         )}
         {/* Giphy attribution (required by their ToS) */}
         {!loading && gifs.length > 0 && (
-          <p className="text-center text-[10px] text-mist-700 pt-2 pb-1">Powered by Tenor</p>
+          <p className="text-center text-[10px] text-mist-700 pt-2 pb-1">Powered by GIPHY</p>
         )}
       </div>
     </div>
