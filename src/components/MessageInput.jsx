@@ -260,8 +260,17 @@ export default function MessageInput({
 
   const handlePaste = (e) => {
     const items = Array.from(e.clipboardData?.items || []);
-    const img   = items.find(it => it.type.startsWith('image/'));
-    if (img) { e.preventDefault(); const f = img.getAsFile(); if (f) loadFile(f); return; }
+
+    // Check for any file (image, video, audio, pdf, etc.)
+    const fileItem = items.find(it => it.kind === 'file');
+    if (fileItem) {
+      e.preventDefault();
+      const f = fileItem.getAsFile();
+      if (f) loadFile(f);
+      return;
+    }
+
+    // Plain text paste
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
     const el = editorRef.current; if (!el) return;

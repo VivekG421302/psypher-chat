@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Pencil, Trash2, Copy, Smile, Check, CheckSquare, Gamepad2, Trophy, Reply, Download, FileText, File, Music, Video, CheckCheck } from 'lucide-react';
+import { Pencil, Trash2, Copy, Smile, Check, CheckSquare, Gamepad2, Trophy, Reply, Download, FileText, File, Music, Video, CheckCheck, Play, Pause } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import QuickReactBar from './QuickReactBar.jsx';
 import { useLongPress } from '../lib/useLongPress.js';
@@ -23,6 +23,126 @@ function fileTypeIcon(mime) {
   return File;
 }
 
+
+// ── Voice note player ─────────────────────────────────────────────────────────
+function VoiceNotePlayer({ dataUrl, mime, mine }) {
+  const audioRef  = useRef(null);
+  const [playing, setPlaying]   = useState(false);
+  const [progress, setProgress] = useState(0);   // 0–1
+  const [duration, setDuration] = useState(0);
+  const [current,  setCurrent]  = useState(0);
+  const rafRef = useRef(null);
+
+  // Convert base64 → Blob URL once
+  const src = useRef('');
+  if (!src.current) {
+    try {
+      if (dataUrl?.startsWith('data:')) {
+        const arr = dataUrl.split(',');
+        const bstr = atob(arr[1]);
+        const u8 = new Uint8Array(bstr.length);
+        for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+        src.current = URL.createObjectURL(new Blob([u8], { type: mime }));
+      } else {
+        src.current = dataUrl || '';
+      }
+    } catch { src.current = dataUrl || ''; }
+  }
+
+  const tick = useCallback(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    setCurrent(el.currentTime);
+    setProgress(el.duration ? el.currentTime / el.duration : 0);
+    if (!el.paused) rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const togglePlay = () => {
+    const el = audioRef.current; if (!el) return;
+    if (el.paused) { el.play(); setPlaying(true); rafRef.current = requestAnimationFrame(tick); }
+    else           { el.pause(); setPlaying(false); cancelAnimationFrame(rafRef.current); }
+  };
+
+  const seek = (e) => {
+    const el = audioRef.current; if (!el || !el.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    el.currentTime = ratio * el.duration;
+    setProgress(ratio);
+    setCurrent(el.currentTime);
+  };
+
+  const fmt = (s) => {
+    const t = isFinite(s) ? Math.round(s) : 0;
+    return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+  };
+
+  // Bar heights — fake waveform from a seeded pattern
+  const BARS = 28;
+  const heights = Array.from({ length: BARS }, (_, i) =>
+    30 + Math.round(Math.abs(Math.sin(i * 0.7 + 1.3) * 55 + Math.cos(i * 1.1) * 20))
+  );
+
+  const accent = mine ? 'bg-ink-950' : 'bg-signal-500';
+  const dim    = mine ? 'bg-ink-950/30' : 'bg-signal-500/30';
+
+  return (
+    <div className={`flex items-center gap-2.5 rounded-2xl px-3 py-2.5 min-w-[220px] max-w-[280px]`}>
+      {/* Play / Pause button */}
+      <button
+        onClick={togglePlay}
+        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-all active:scale-90 ${
+          mine ? 'bg-ink-950/30 hover:bg-ink-950/50' : 'bg-signal-500/20 hover:bg-signal-500/30'
+        }`}
+      >
+        {playing
+          ? <Pause  size={16} className={mine ? 'text-ink-100' : 'text-signal-400'} />
+          : <Play   size={16} className={mine ? 'text-ink-100' : 'text-signal-400'} style={{ marginLeft: 2 }} />
+        }
+      </button>
+
+      {/* Waveform + progress */}
+      <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+        {/* Waveform bars — clickable scrubber */}
+        <div
+          className="flex items-center gap-[2px] h-8 cursor-pointer"
+          onClick={seek}
+        >
+          {heights.map((h, i) => {
+            const filled = i / BARS < progress;
+            return (
+              <div
+                key={i}
+                className={`w-[3px] rounded-full transition-colors ${filled ? accent : dim}`}
+                style={{ height: `${h}%` }}
+              />
+            );
+          })}
+        </div>
+        {/* Time */}
+        <div className="flex items-center justify-between">
+          <span className={`text-[10px] font-mono ${mine ? 'text-ink-300' : 'text-mist-500'}`}>
+            {playing || current > 0 ? fmt(current) : fmt(duration)}
+          </span>
+          <span className={`text-[10px] ${mine ? 'text-ink-400/60' : 'text-mist-600'}`}>
+            Voice note
+          </span>
+        </div>
+      </div>
+
+      {/* Hidden audio element */}
+      <audio
+        ref={audioRef}
+        src={src.current}
+        preload="metadata"
+        className="hidden"
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
+        onEnded={() => { setPlaying(false); setProgress(0); setCurrent(0); cancelAnimationFrame(rafRef.current); }}
+      />
+    </div>
+  );
+}
+
 function FileCard({ text, mine }) {
   // [file]mime|name|dataUrl
   const raw    = text.slice('[file]'.length);
@@ -41,37 +161,9 @@ function FileCard({ text, mine }) {
     a.href = dataUrl; a.download = name; a.click();
   }
 
-  // ── Audio: inline player ──────────────────────────────────────────────────
+  // ── Audio: custom voice note player ─────────────────────────────────────────
   if (isAudio) {
-    return (
-      <div className={`rounded-2xl px-3 py-2.5 min-w-[220px] max-w-xs ${mine ? 'bg-ink-950/20' : 'bg-ink-800/60'}`}>
-        <div className="flex items-center gap-2 mb-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${mine ? 'bg-ink-950/40' : 'bg-ink-700'}`}>
-            <Music size={14} className={mine ? 'text-cipher-300' : 'text-cipher-400'} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className={`text-xs font-medium truncate ${mine ? 'text-ink-100' : 'text-mist-100'}`}>{name}</p>
-            <p className={`text-[10px] ${mine ? 'text-ink-400' : 'text-mist-600'}`}>Voice note</p>
-          </div>
-        </div>
-        {(() => {
-          let src = dataUrl;
-          try {
-            if (dataUrl.startsWith('data:')) {
-              const arr = dataUrl.split(',');
-              const bstr = atob(arr[1]);
-              const u8 = new Uint8Array(bstr.length);
-              for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
-              src = URL.createObjectURL(new Blob([u8], { type: mime }));
-            }
-          } catch { src = dataUrl; }
-          return (
-            <audio controls src={src} className="w-full h-8"
-              style={{ colorScheme: 'dark' }} preload="metadata" />
-          );
-        })()}
-      </div>
-    );
+    return <VoiceNotePlayer dataUrl={dataUrl} mime={mime} mine={mine} />;
   }
 
   // ── Video: inline player with Blob URL for proper seeking ───────────────────
@@ -265,8 +357,9 @@ export default function MessageBubble({
   }
 
   const reactionEntries = Object.entries(m.reactions || {}).filter(([, users]) => users.length > 0);
-  const isImage = m.text?.startsWith('[image]data:image');
-  const isFile  = m.text?.startsWith('[file]') || m.text?.startsWith('[gif]');
+  const isImage = m.text?.startsWith('[image]');
+  const isGif   = m.text?.startsWith('[gif]');
+  const isFile  = m.text?.startsWith('[file]') || isGif;
 
   function handleClick() {
     if (longPress.didLongPress()) return;
@@ -316,10 +409,14 @@ export default function MessageBubble({
             e.preventDefault();
             setShowActions((v) => !v);
           }}
-          className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed select-none sm:select-text cursor-pointer sm:cursor-auto [word-break:break-word] [overflow-wrap:anywhere] ${
+          className={`rounded-2xl text-sm leading-relaxed select-none sm:select-text cursor-pointer sm:cursor-auto [word-break:break-word] [overflow-wrap:anywhere] ${
+            isGif || isImage ? 'p-0 overflow-hidden bg-transparent' : 'px-3.5 py-2'
+          } ${
             selected ? 'ring-2 ring-signal-500' : ''
           } ${
-            m.mine
+            isGif || isImage
+              ? ''
+              : m.mine
               ? 'bg-signal-500 text-ink-950 rounded-br-md'
               : m.failed
               ? 'bg-danger/10 border border-danger/30 text-danger rounded-bl-md'
