@@ -26,84 +26,68 @@ function fileIcon(mime) {
   return File;
 }
 
-// ── Attachment preview ────────────────────────────────────────────────────────
+// ── Attachment preview strip ─────────────────────────────────────────────────
 function AttachmentPreview({ file, onRemove }) {
-  const isImage = file.isImage || file.mime?.startsWith('image/');
+  const isImg   = file.isImage || file.mime?.startsWith('image/');
   const isAudio = file.isAudio || file.mime?.startsWith('audio/');
-  const isVideo = file.isVideo || file.mime?.startsWith('video/');
-  const Icon = fileIcon(file.mime);
-
-  // For video: dataUrl is already a Blob URL (blobPreview=true) or base64
-  const videoSrc = isVideo ? file.dataUrl : null;
-
+  const isVid   = file.isVideo || file.mime?.startsWith('video/');
+  const Icon    = fileIcon(file.mime);
   return (
-    <div className="mb-2 flex items-center gap-2.5 bg-ink-800 rounded-xl px-3 py-2 border border-ink-600">
-      {isImage ? (
-        <img src={file.dataUrl} alt="preview" className="w-12 h-12 object-cover rounded-lg shrink-0" />
-      ) : isVideo ? (
-        <div className="w-12 h-12 rounded-lg overflow-hidden bg-black shrink-0 relative">
-          <video src={videoSrc} className="w-full h-full object-cover" preload="metadata" muted playsInline />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-5 h-5 rounded-full bg-black/50 flex items-center justify-center">
-              <Video size={10} className="text-white ml-0.5" />
-            </div>
+    <div className="mx-2 mb-1 flex items-center gap-2.5 bg-ink-800 rounded-xl px-3 py-2 border border-ink-700">
+      {isImg ? (
+        <img src={file.dataUrl} alt="" className="w-10 h-10 object-cover rounded-lg shrink-0" />
+      ) : isVid ? (
+        <div className="w-10 h-10 rounded-lg bg-black overflow-hidden shrink-0 relative">
+          <video src={file.dataUrl} className="w-full h-full object-cover" preload="metadata" muted playsInline />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+            <Video size={12} className="text-white" />
           </div>
         </div>
       ) : isAudio ? (
-        <div className="w-12 h-12 rounded-lg bg-cipher-700/30 border border-cipher-600/40 flex items-center justify-center shrink-0">
-          <Mic size={20} className="text-cipher-400" />
+        <div className="w-10 h-10 rounded-lg bg-cipher-800/40 flex items-center justify-center shrink-0">
+          <Mic size={16} className="text-cipher-400" />
         </div>
       ) : (
-        <div className="w-12 h-12 rounded-lg bg-ink-700 border border-ink-600 flex items-center justify-center shrink-0">
-          <Icon size={22} className="text-mist-400" />
+        <div className="w-10 h-10 rounded-lg bg-ink-700 flex items-center justify-center shrink-0">
+          <Icon size={18} className="text-mist-400" />
         </div>
       )}
       <div className="flex-1 min-w-0">
         <p className="text-xs text-mist-200 truncate font-medium">{file.name}</p>
-        <p className="text-[11px] text-mist-600">{humanSize(file.size)} · ready to send</p>
+        <p className="text-[10px] text-mist-600">{humanSize(file.size)}</p>
       </div>
-      <button type="button" onClick={onRemove}
-        className="text-mist-500 hover:text-red-400 transition-colors cursor-pointer shrink-0">
+      <button type="button" onClick={onRemove} className="text-mist-600 hover:text-red-400 cursor-pointer shrink-0">
         <X size={14} />
       </button>
     </div>
   );
 }
 
-// ── Telegram-style bottom drawer ──────────────────────────────────────────────
+// ── Telegram attach drawer ───────────────────────────────────────────────────
 function AttachDrawer({ onFile, onCamera, onClose }) {
   const galleryRef = useRef(null);
   const docRef     = useRef(null);
-
   const options = [
-    { label: 'Camera',  icon: Camera,     color: 'bg-red-500',    action: () => { onCamera(); } },
-    { label: 'Gallery', icon: ImageIcon,  color: 'bg-violet-500', action: () => { galleryRef.current?.click(); } },
-    { label: 'File',    icon: FolderOpen, color: 'bg-blue-500',   action: () => { docRef.current?.click(); } },
+    { label: 'Camera',  icon: Camera,     color: 'bg-red-500',    fn: () => { onCamera(); onClose(); } },
+    { label: 'Gallery', icon: ImageIcon,  color: 'bg-violet-500', fn: () => { galleryRef.current?.click(); onClose(); } },
+    { label: 'File',    icon: FolderOpen, color: 'bg-blue-500',   fn: () => { docRef.current?.click(); onClose(); } },
   ];
-
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-40 bg-black/40"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-        className="fixed bottom-0 left-0 right-0 z-50 bg-ink-900 border-t border-ink-700 rounded-t-2xl px-6 pt-4 pb-8"
-      >
-        <div className="w-10 h-1 bg-ink-600 rounded-full mx-auto mb-5" />
-        <p className="text-xs text-mist-600 uppercase tracking-widest mb-4">Share</p>
+        className="fixed bottom-0 left-0 right-0 z-50 bg-ink-900 border-t border-ink-700 rounded-t-2xl px-6 pt-3 pb-8">
+        <div className="w-10 h-1 bg-ink-600 rounded-full mx-auto mb-4" />
         <div className="grid grid-cols-3 gap-4">
-          {options.map(({ label, icon: Icon, color, action }) => (
-            <button key={label} type="button"
-              onClick={() => { action(); onClose(); }}
+          {options.map(({ label, icon: Icon, color, fn }) => (
+            <button key={label} type="button" onClick={fn}
               className="flex flex-col items-center gap-2 cursor-pointer group">
-              <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center shadow-lg group-active:scale-95 transition-transform`}>
-                <Icon size={26} className="text-white" />
+              <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center shadow-lg group-active:scale-90 transition-transform`}>
+                <Icon size={24} className="text-white" />
               </div>
-              <span className="text-xs text-mist-400 group-hover:text-mist-200 transition-colors">{label}</span>
+              <span className="text-xs text-mist-400 group-hover:text-mist-200">{label}</span>
             </button>
           ))}
         </div>
@@ -116,51 +100,51 @@ function AttachDrawer({ onFile, onCamera, onClose }) {
   );
 }
 
-// ── Real-time voice waveform from AudioAnalyser ──────────────────────────────
-function VoiceWaveform({ seconds, analyserRef }) {
-  const BAR_COUNT = 24;
-  const [bars, setBars] = useState(() => Array(BAR_COUNT).fill(4));
+// ── Voice recording bar ──────────────────────────────────────────────────────
+function RecordingBar({ seconds, analyserRef, onCancel }) {
+  const BAR_COUNT = 28;
+  const [bars, setBars] = useState(() => Array(BAR_COUNT).fill(6));
   const rafRef = useRef(null);
 
   useEffect(() => {
     const analyser = analyserRef?.current;
     if (!analyser) return undefined;
     const data = new Uint8Array(analyser.frequencyBinCount);
-    const step = () => {
+    const tick = () => {
       analyser.getByteFrequencyData(data);
       const chunk = Math.floor(data.length / BAR_COUNT);
       const next = Array.from({ length: BAR_COUNT }, (_, i) => {
         let sum = 0;
         for (let j = 0; j < chunk; j++) sum += data[i * chunk + j];
-        const avg = sum / chunk;
-        // Map 0-255 → 4-32px
-        return Math.max(4, Math.round((avg / 255) * 28 + 4));
+        return Math.max(4, Math.round((sum / chunk / 255) * 26 + 4));
       });
       setBars(next);
-      rafRef.current = requestAnimationFrame(step);
+      rafRef.current = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(step);
+    rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [analyserRef]);
 
   return (
-    <div className="flex-1 flex items-center gap-1 px-2">
-      <span className="text-xs text-red-400 font-mono w-10 shrink-0">
+    <div className="flex items-center gap-2 flex-1 min-w-0 bg-ink-800 border border-red-500/30 rounded-full px-3 h-11">
+      <button type="button" onClick={onCancel} className="shrink-0 text-mist-500 hover:text-red-400 cursor-pointer">
+        <X size={16} />
+      </button>
+      <span className="text-xs text-red-400 font-mono shrink-0 w-9">
         {`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`}
       </span>
-      <div className="flex items-center gap-[2px] flex-1 h-8">
+      <div className="flex items-center gap-[2px] flex-1 h-6">
         {bars.map((h, i) => (
-          <div key={i} className="w-[3px] rounded-full bg-red-400 transition-none"
-            style={{ height: `${h}px` }} />
+          <div key={i} className="w-[2.5px] rounded-full bg-red-400" style={{ height: `${h}px` }} />
         ))}
       </div>
       <motion.div className="w-2 h-2 rounded-full bg-red-500 shrink-0"
-        animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 1, repeat: Infinity }} />
+        animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 0.9, repeat: Infinity }} />
     </div>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main component ───────────────────────────────────────────────────────────
 export default function MessageInput({
   onSend, onTyping, disabled,
   editingMessage, onSubmitEdit, onCancelEdit,
@@ -172,41 +156,45 @@ export default function MessageInput({
   const [pendingFile, setPendingFile] = useState(null);
   const [isEmpty,     setIsEmpty]     = useState(true);
   const [selToolbar,  setSelToolbar]  = useState(false);
-  const [recording,   setRecording]   = useState(false);
+  const [recording,   setRecording]   = useState(false);  // mic-tap mode
   const [recSecs,     setRecSecs]     = useState(0);
   const [fileLoading, setFileLoading] = useState(false);
+  const [micHeld,     setMicHeld]     = useState(false);  // press-hold state
 
   const editorRef       = useRef(null);
   const typingActive    = useRef(false);
   const typingStopTimer = useRef(null);
   const pickerWrapRef   = useRef(null);
-  const emojiButtonRef  = useRef(null);
   const mediaRecRef     = useRef(null);
   const recTimerRef     = useRef(null);
   const audioChunksRef  = useRef([]);
   const analyserRef     = useRef(null);
   const audioCtxRef     = useRef(null);
+  const holdTimeout     = useRef(null);
+  const isHoldRef       = useRef(false);  // true = press-hold mode, false = tap mode
 
   const isEditing  = !!editingMessage;
   const hasContent = !isEmpty || !!pendingFile;
 
-  // Close emoji on outside click
+  // Close emoji on outside click / tap
   useEffect(() => {
     if (!pickerOpen) return undefined;
     const fn = (e) => {
       if (pickerWrapRef.current?.contains(e.target)) return;
-      if (emojiButtonRef.current?.contains(e.target)) return;
       setPickerOpen(false);
     };
     document.addEventListener('mousedown', fn);
-    return () => document.removeEventListener('mousedown', fn);
+    document.addEventListener('touchstart', fn, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', fn);
+      document.removeEventListener('touchstart', fn);
+    };
   }, [pickerOpen]);
 
   // Selection toolbar
   useEffect(() => {
     const fn = () => {
-      const sel = window.getSelection();
-      const el  = editorRef.current;
+      const sel = window.getSelection(); const el = editorRef.current;
       if (!sel || !el || sel.rangeCount === 0 || sel.isCollapsed) { setSelToolbar(false); return; }
       setSelToolbar(el.contains(sel.anchorNode) && el.contains(sel.focusNode));
     };
@@ -214,7 +202,7 @@ export default function MessageInput({
     return () => document.removeEventListener('selectionchange', fn);
   }, []);
 
-  // Hydrate editor when editing
+  // Hydrate editor for editing
   useEffect(() => {
     if (isEditing && editorRef.current) {
       editorRef.current.innerHTML = markdownToHtml(editingMessage.text);
@@ -250,8 +238,7 @@ export default function MessageInput({
   };
 
   const isCaretInList = () => {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return false;
+    const sel = window.getSelection(); if (!sel || sel.rangeCount === 0) return false;
     let node = sel.getRangeAt(0).startContainer;
     while (node && node !== editorRef.current) {
       if (node.nodeType === 1 && (node.tagName === 'LI' || node.tagName === 'OL')) return true;
@@ -266,25 +253,15 @@ export default function MessageInput({
   };
 
   const getRange = () => {
-    const el = editorRef.current;
-    const sel = window.getSelection();
+    const el = editorRef.current; const sel = window.getSelection();
     if (sel?.rangeCount > 0 && el.contains(sel.anchorNode)) return sel.getRangeAt(0);
     const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); return r;
   };
 
   const handlePaste = (e) => {
     const items = Array.from(e.clipboardData?.items || []);
-
-    // Check for any file (image, video, audio, pdf, etc.)
     const fileItem = items.find(it => it.kind === 'file');
-    if (fileItem) {
-      e.preventDefault();
-      const f = fileItem.getAsFile();
-      if (f) loadFile(f);
-      return;
-    }
-
-    // Plain text paste
+    if (fileItem) { e.preventDefault(); const f = fileItem.getAsFile(); if (f) loadFile(f); return; }
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
     const el = editorRef.current; if (!el) return;
@@ -295,8 +272,7 @@ export default function MessageInput({
       frag.appendChild(document.createTextNode(p));
       if (i < arr.length - 1) frag.appendChild(document.createElement('br'));
     });
-    const last = frag.lastChild;
-    range.insertNode(frag);
+    const last = frag.lastChild; range.insertNode(frag);
     if (last) {
       const r = document.createRange(); r.setStartAfter(last); r.collapse(true);
       window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
@@ -307,16 +283,12 @@ export default function MessageInput({
   const insertEmoji = (val) => {
     if (val.startsWith('[gif]')) {
       const reply = replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text } : null;
-      onSend(val, reply);
-      onCancelReply?.();
-      setPickerOpen(false);
-      return;
+      onSend(val, reply); onCancelReply?.(); setPickerOpen(false); return;
     }
     const el = editorRef.current; if (!el) return;
     el.focus();
     const range = getRange(); range.deleteContents();
-    const node = document.createTextNode(val);
-    range.insertNode(node);
+    const node = document.createTextNode(val); range.insertNode(node);
     const r = document.createRange(); r.setStartAfter(node); r.collapse(true);
     window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
     refreshEmpty();
@@ -324,27 +296,14 @@ export default function MessageInput({
 
   const loadFile = (file) => {
     if (!file) return;
-    const isVideo = (file.type || '').startsWith('video/');
-
-    // For video: enforce a tighter limit (50MB raw = ~67MB base64 — too large for socket)
-    const videoLimit = 50 * 1024 * 1024;
-    const limit = isVideo ? videoLimit : MAX_BYTES;
-    if (file.size > limit) {
-      alert(`File too large. Max ${isVideo ? '50' : MAX_FILE_MB} MB.`);
-      return;
-    }
-
+    const isVid = (file.type || '').startsWith('video/');
+    const limit = isVid ? 50 * 1024 * 1024 : MAX_BYTES;
+    if (file.size > limit) { alert(`Max ${isVid ? '50' : MAX_FILE_MB} MB`); return; }
     setFileLoading(true);
-
-    if (isVideo) {
-      // For video: use Blob URL for preview; read as base64 for sending
-      const previewUrl = URL.createObjectURL(file);
-      // Show preview immediately
+    if (isVid) {
       setPendingFile({
-        name: file.name, mime: file.type,
-        size: file.size, dataUrl: previewUrl,
-        blobPreview: true, // flag: this is a Blob URL, not base64 yet
-        rawFile: file,     // keep raw file for sending
+        name: file.name, mime: file.type, size: file.size,
+        dataUrl: URL.createObjectURL(file), blobPreview: true, rawFile: file,
         isImage: false, isAudio: false, isVideo: true,
       });
       setFileLoading(false);
@@ -352,8 +311,8 @@ export default function MessageInput({
       const reader = new FileReader();
       reader.onload = ev => {
         setPendingFile({
-          name: file.name, mime: file.type || 'application/octet-stream',
-          size: file.size, dataUrl: ev.target.result,
+          name: file.name, mime: file.type || 'application/octet-stream', size: file.size,
+          dataUrl: ev.target.result,
           isImage: (file.type || '').startsWith('image/'),
           isAudio: (file.type || '').startsWith('audio/'),
           isVideo: false,
@@ -366,11 +325,10 @@ export default function MessageInput({
   };
 
   const handleFileInput = (e) => { const f = e.target.files?.[0]; if (f) loadFile(f); e.target.value = ''; };
-
   const handleCameraCapture = (dataUrl) => {
-    const approxBytes = Math.round((dataUrl.length * 3) / 4);
-    if (approxBytes > MAX_BYTES) { alert(`Image too large. Max ${MAX_FILE_MB} MB.`); return; }
-    setPendingFile({ name: 'Photo.jpg', mime: 'image/jpeg', size: approxBytes, dataUrl, isImage: true, isAudio: false });
+    const bytes = Math.round((dataUrl.length * 3) / 4);
+    if (bytes > MAX_BYTES) { alert(`Max ${MAX_FILE_MB} MB`); return; }
+    setPendingFile({ name: 'Photo.jpg', mime: 'image/jpeg', size: bytes, dataUrl, isImage: true, isAudio: false });
     setCameraOpen(false);
   };
 
@@ -381,107 +339,117 @@ export default function MessageInput({
     window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
   };
 
-  // ── Voice recording ──────────────────────────────────────────────────────────
-  const startRecording = async () => {
-    if (!navigator.mediaDevices?.getUserMedia) { alert('Microphone not supported.'); return; }
+  // ── Recording engine ─────────────────────────────────────────────────────────
+  const startMic = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) { alert('Microphone not supported.'); return false; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      // Set up AudioContext + AnalyserNode for real-time waveform
-      const ctx      = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 128;
-      analyser.smoothingTimeConstant = 0.6;
+      analyser.fftSize = 128; analyser.smoothingTimeConstant = 0.65;
       ctx.createMediaStreamSource(stream).connect(analyser);
-      audioCtxRef.current  = ctx;
-      analyserRef.current  = analyser;
-
+      audioCtxRef.current = ctx; analyserRef.current = analyser;
       const mr = new MediaRecorder(stream);
       audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        audioCtxRef.current?.close();
-        audioCtxRef.current = null;
-        analyserRef.current = null;
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        if (blob.size > MAX_BYTES) { alert(`Voice note too large (max ${MAX_FILE_MB} MB).`); return; }
-        const reader = new FileReader();
-        reader.onload = (ev) => setPendingFile({
-          name: 'Voice note.webm', mime: 'audio/webm', size: blob.size,
-          dataUrl: ev.target.result, isImage: false, isAudio: true,
-        });
-        reader.readAsDataURL(blob);
-      };
       mr.start();
       mediaRecRef.current = mr;
-      setRecording(true);
       setRecSecs(0);
       recTimerRef.current = setInterval(() => setRecSecs(s => s + 1), 1000);
-    } catch { alert('Could not access microphone.'); }
+      return true;
+    } catch { alert('Cannot access microphone.'); return false; }
   };
 
-  const stopRecording = () => {
+  const stopMicAndSend = () => {
     clearInterval(recTimerRef.current);
-    mediaRecRef.current?.stop();
-    setRecording(false); setRecSecs(0);
+    const mr = mediaRecRef.current;
+    if (!mr) return;
+    mr.onstop = () => {
+      mr.stream?.getTracks().forEach(t => t.stop());
+      audioCtxRef.current?.close(); audioCtxRef.current = null; analyserRef.current = null;
+      const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      if (blob.size < 1000) return; // too short, ignore
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const reply = replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text } : null;
+        onSend(`[file]audio/webm|Voice note.webm|${ev.target.result}`, reply);
+        onCancelReply?.();
+      };
+      reader.readAsDataURL(blob);
+    };
+    mr.stop();
+    setRecording(false); setMicHeld(false); setRecSecs(0);
   };
 
-  const cancelRecording = () => {
+  const cancelMic = () => {
     clearInterval(recTimerRef.current);
-    mediaRecRef.current?.stream?.getTracks().forEach(t => t.stop());
+    try { mediaRecRef.current?.stream?.getTracks().forEach(t => t.stop()); } catch { /**/ }
     try { mediaRecRef.current?.stop(); } catch { /**/ }
-    audioCtxRef.current?.close();
-    audioCtxRef.current = null;
-    analyserRef.current = null;
+    audioCtxRef.current?.close(); audioCtxRef.current = null; analyserRef.current = null;
     audioChunksRef.current = [];
-    setRecording(false); setRecSecs(0);
+    setRecording(false); setMicHeld(false); setRecSecs(0);
   };
 
-  // ── Submit ───────────────────────────────────────────────────────────────────
+  // ── Mic button: press-hold = record → release = send; tap = toggle record mode
+  const onMicPointerDown = (e) => {
+    e.preventDefault();
+    isHoldRef.current = false;
+    holdTimeout.current = setTimeout(async () => {
+      isHoldRef.current = true;
+      const ok = await startMic();
+      if (ok) setMicHeld(true);
+    }, 200); // 200ms to distinguish tap from hold
+  };
+
+  const onMicPointerUp = () => {
+    clearTimeout(holdTimeout.current);
+    if (isHoldRef.current && micHeld) {
+      // Was holding — release = send
+      stopMicAndSend();
+    } else if (!isHoldRef.current) {
+      // Was a tap — toggle recording mode
+      if (recording) {
+        stopMicAndSend();
+      } else {
+        startMic().then(ok => { if (ok) setRecording(true); });
+      }
+    }
+  };
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const submit = () => {
-    if (recording) { stopRecording(); return; }
+    if (recording) { stopMicAndSend(); return; }
     const reply = replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text } : null;
     if (pendingFile) {
       const doSend = (dataUrl) => {
-        const msg = pendingFile.isImage
-          ? `[image]${dataUrl}`
-          : `[file]${pendingFile.mime}|${pendingFile.name}|${dataUrl}`;
-        onSend(msg, reply);
-        setPendingFile(null); onCancelReply?.(); clearEditor();
-        setFileLoading(false);
+        const msg = pendingFile.isImage ? `[image]${dataUrl}` : `[file]${pendingFile.mime}|${pendingFile.name}|${dataUrl}`;
+        onSend(msg, reply); setPendingFile(null); onCancelReply?.(); clearEditor(); setFileLoading(false);
       };
-
       if (pendingFile.blobPreview && pendingFile.rawFile) {
-        // Video: need to convert raw File to base64 now
         setFileLoading(true);
         const reader = new FileReader();
         reader.onload = ev => doSend(ev.target.result);
-        reader.onerror = () => { alert('Failed to read video.'); setFileLoading(false); };
+        reader.onerror = () => { alert('Failed to read file.'); setFileLoading(false); };
         reader.readAsDataURL(pendingFile.rawFile);
         return;
       }
-
-      doSend(pendingFile.dataUrl);
-      return;
+      doSend(pendingFile.dataUrl); return;
     }
     const markdown = editorRef.current ? domToMarkdown(editorRef.current).trim() : '';
     if (!markdown) return;
     if (isEditing) { onSubmitEdit(editingMessage.id, markdown); }
     else { onSend(markdown, reply); onCancelReply?.(); }
-    clearEditor();
-    typingActive.current = false;
-    onTyping(false);
+    clearEditor(); typingActive.current = false; onTyping(false);
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="relative bg-ink-900 border-t border-ink-700">
 
       {/* Editing banner */}
       {isEditing && (
         <div className="flex items-center justify-between px-4 py-2 border-b border-ink-700">
-          <span className="flex items-center gap-1.5 text-xs text-cipher-400"><Check size={12} /> Editing message</span>
+          <span className="flex items-center gap-1.5 text-xs text-cipher-400"><Check size={12} /> Editing</span>
           <button type="button" onClick={() => { onCancelEdit(); clearEditor(); }} className="text-mist-500 hover:text-mist-100 cursor-pointer"><X size={14} /></button>
         </div>
       )}
@@ -502,7 +470,7 @@ export default function MessageInput({
         </div>
       )}
 
-      {/* Loading indicator when reading file */}
+      {/* File loading */}
       {fileLoading && (
         <div className="px-4 pt-2 flex items-center gap-2 text-xs text-mist-500">
           <div className="w-3 h-3 border border-mist-600 border-t-mist-300 rounded-full animate-spin" />
@@ -512,114 +480,140 @@ export default function MessageInput({
 
       {/* Pending file preview */}
       {pendingFile && !recording && !fileLoading && (
-        <div className="px-3 pt-2">
-          <AttachmentPreview file={pendingFile} onRemove={() => { setPendingFile(null); }} />
+        <div className="pt-2">
+          <AttachmentPreview file={pendingFile} onRemove={() => setPendingFile(null)} />
         </div>
       )}
-
-      {/* Emoji picker */}
-      <AnimatePresence>
-        {pickerOpen && (
-          <div ref={pickerWrapRef} className="absolute bottom-full mb-1 left-3 z-30">
-            <EmojiPicker onPick={(em) => { insertEmoji(em); if (!em.startsWith('[gif]')) setPickerOpen(false); }} />
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Selection formatting toolbar */}
       <AnimatePresence>
         {selToolbar && !pendingFile && !recording && (
-          <motion.div
-            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-            className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 flex items-center gap-0.5 rounded-xl border border-ink-600 bg-ink-800 p-1 shadow-xl"
-          >
-            {[
-              { cmd: 'bold', icon: Bold }, { cmd: 'italic', icon: Italic },
-              { cmd: 'underline', icon: UnderlineIcon }, { cmd: 'strikeThrough', icon: Strikethrough },
-            ].map(({ cmd, icon: Icon }) => (
-              <button key={cmd} type="button" onMouseDown={e => e.preventDefault()} onClick={() => applyFormat(cmd)}
-                className="p-1.5 rounded-lg text-mist-300 hover:text-mist-100 hover:bg-ink-700 transition-colors cursor-pointer">
-                <Icon size={14} />
-              </button>
-            ))}
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+            className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 flex items-center gap-0.5 rounded-xl border border-ink-600 bg-ink-800 p-1 shadow-xl">
+            {[{ cmd: 'bold', icon: Bold }, { cmd: 'italic', icon: Italic },
+              { cmd: 'underline', icon: UnderlineIcon }, { cmd: 'strikeThrough', icon: Strikethrough }]
+              .map(({ cmd, icon: Icon }) => (
+                <button key={cmd} type="button" onMouseDown={e => e.preventDefault()} onClick={() => applyFormat(cmd)}
+                  className="p-1.5 rounded-lg text-mist-300 hover:text-mist-100 hover:bg-ink-700 cursor-pointer">
+                  <Icon size={14} />
+                </button>
+              ))}
             <div className="w-px h-4 bg-ink-700 mx-0.5" />
             <button type="button" onMouseDown={e => e.preventDefault()} onClick={selectAll}
-              className="p-1.5 rounded-lg text-mist-300 hover:text-mist-100 hover:bg-ink-700 transition-colors cursor-pointer">
+              className="p-1.5 rounded-lg text-mist-300 hover:text-mist-100 hover:bg-ink-700 cursor-pointer">
               <CheckSquare size={14} />
             </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── WhatsApp-style input row ─────────────────────────────────────────── */}
+      {/* ── WhatsApp input row ─────────────────────────────────────────────── */}
       <div className="flex items-end gap-2 px-2 py-2">
 
-        {/* Emoji button (left) */}
-        <button type="button" ref={emojiButtonRef} onClick={() => setPickerOpen(v => !v)} disabled={disabled || recording}
-          className={`shrink-0 p-2 rounded-full transition-colors cursor-pointer disabled:opacity-30 ${pickerOpen ? 'text-signal-400' : 'text-mist-400 hover:text-signal-400'}`}>
-          <Smile size={22} />
-        </button>
+        {/* Left green mic button (only shows when not recording and no content) */}
+        {/* Main input pill */}
+        <div className="flex-1 flex items-end gap-0 min-w-0 bg-ink-800 border border-ink-700 rounded-[24px] px-1 py-1">
 
-        {/* Text editor or voice waveform */}
-        <div className="flex-1 min-w-0">
-          {recording ? (
-            <div className="flex items-center gap-1 bg-ink-800 border border-red-500/40 rounded-full px-3 py-2.5 min-h-[2.75rem]">
-              <button type="button" onClick={cancelRecording} className="text-mist-500 hover:text-red-400 cursor-pointer shrink-0">
-                <X size={16} />
+          {/* Emoji button — inside the pill */}
+          <button type="button"
+            onClick={() => setPickerOpen(v => !v)}
+            disabled={disabled || recording}
+            className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-colors cursor-pointer disabled:opacity-30 ${pickerOpen ? 'text-signal-400' : 'text-mist-500 hover:text-mist-200'}`}>
+            <Smile size={21} />
+          </button>
+
+          {/* Text / recording area */}
+          <div className="flex-1 min-w-0 py-0.5">
+            {recording || micHeld ? (
+              <RecordingBar seconds={recSecs} analyserRef={analyserRef} onCancel={cancelMic} />
+            ) : (
+              <div className="relative">
+                {isEmpty && !pendingFile && (
+                  <span className="pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 text-sm text-mist-600 truncate z-10">
+                    {disabled ? 'Reconnecting…' : isEditing ? 'Edit message…' : 'Message…'}
+                  </span>
+                )}
+                <div
+                  ref={editorRef}
+                  contentEditable={!disabled && !pendingFile}
+                  suppressContentEditableWarning
+                  onInput={handleInput}
+                  onBeforeInput={handleBeforeInput}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
+                  data-chat-input
+                  role="textbox"
+                  aria-multiline="true"
+                  className={`w-full px-1 py-2 text-sm text-mist-100 outline-none max-h-28 overflow-y-auto bg-transparent ${disabled || pendingFile ? 'opacity-50' : ''}`}
+                  style={{ minHeight: '2.25rem' }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Attach + Camera — inside pill, right side, only when no content */}
+          {!hasContent && !recording && !micHeld && (
+            <div className="flex items-center shrink-0">
+              <button type="button" onClick={() => setDrawerOpen(true)} disabled={disabled}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-mist-500 hover:text-mist-200 cursor-pointer disabled:opacity-30">
+                <Paperclip size={20} />
               </button>
-              <VoiceWaveform seconds={recSecs} analyserRef={analyserRef} />
-            </div>
-          ) : (
-            <div className="relative">
-              {isEmpty && !pendingFile && (
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-mist-600 truncate max-w-[calc(100%-2rem)] z-10">
-                  {disabled ? 'Reconnecting…' : isEditing ? 'Edit message…' : 'Message…'}
-                </span>
-              )}
-              <div
-                ref={editorRef}
-                contentEditable={!disabled && !pendingFile}
-                suppressContentEditableWarning
-                onInput={handleInput}
-                onBeforeInput={handleBeforeInput}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-                data-chat-input
-                role="textbox"
-                aria-multiline="true"
-                className={`w-full rounded-full bg-ink-800 border px-4 py-2.5 text-sm text-mist-100 outline-none max-h-28 overflow-y-auto transition-colors
-                  ${disabled || pendingFile ? 'opacity-50' : ''}
-                  ${isEditing ? 'border-cipher-500 rounded-xl' : 'border-ink-600 focus:border-signal-500/60'}`}
-                style={{ minHeight: '2.75rem' }}
-              />
+              <button type="button" onClick={() => setCameraOpen(true)} disabled={disabled}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-mist-500 hover:text-mist-200 cursor-pointer disabled:opacity-30">
+                <Camera size={20} />
+              </button>
             </div>
           )}
         </div>
 
-        {/* Right buttons */}
-        {hasContent || recording ? (
-          /* Send / Stop */
-          <motion.button type="button" onClick={submit} disabled={!hasContent && !recording}
-            whileTap={{ scale: 0.9 }}
-            className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer transition-colors shadow-lg
-              ${recording ? 'bg-red-500 hover:bg-red-400' : isEditing ? 'bg-cipher-500 hover:bg-cipher-400' : 'bg-signal-500 hover:bg-signal-400'}`}>
-            {recording ? <Check size={20} className="text-white" /> : <Send size={20} className="text-white" />}
-          </motion.button>
-        ) : (
-          /* Attach + Mic */
-          <div className="flex items-center gap-1 shrink-0">
-            <button type="button" onClick={() => setDrawerOpen(true)} disabled={disabled}
-              className="p-2 rounded-full text-mist-400 hover:text-signal-400 transition-colors cursor-pointer disabled:opacity-30">
-              <Paperclip size={22} />
-            </button>
-            <motion.button type="button" onClick={startRecording} disabled={disabled}
-              whileTap={{ scale: 0.9 }}
-              className="w-11 h-11 rounded-full bg-signal-500 hover:bg-signal-400 flex items-center justify-center cursor-pointer shadow-lg disabled:opacity-30">
+        {/* Right round button — Send or Mic */}
+        <AnimatePresence mode="wait">
+          {hasContent || recording || micHeld ? (
+            <motion.button key="send" type="button" onClick={submit}
+              initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0, rotate: 90 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer shadow-lg transition-colors ${
+                recording || micHeld ? 'bg-red-500 hover:bg-red-400' : isEditing ? 'bg-cipher-500 hover:bg-cipher-400' : 'bg-signal-500 hover:bg-signal-400'
+              }`}>
+              {recording || micHeld
+                ? <Check size={20} className="text-white" />
+                : isEditing
+                ? <Check size={20} className="text-white" />
+                : <Send size={18} className="text-white" />}
+            </motion.button>
+          ) : (
+            <motion.button key="mic" type="button"
+              initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              onPointerDown={onMicPointerDown}
+              onPointerUp={onMicPointerUp}
+              onPointerLeave={onMicPointerUp}
+              onPointerCancel={onMicPointerUp}
+              disabled={disabled}
+              className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer shadow-lg transition-all select-none touch-none disabled:opacity-30 ${
+                micHeld ? 'bg-red-500 scale-110' : 'bg-signal-500 hover:bg-signal-400'
+              }`}
+              style={{ WebkitUserSelect: 'none' }}>
               <Mic size={20} className="text-white" />
             </motion.button>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
       </div>
+
+      {/* Emoji / GIF bottom sheet — backdrop closes it */}
+      <AnimatePresence>
+        {pickerOpen && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setPickerOpen(false)} />
+            <div ref={pickerWrapRef} className="relative z-40">
+              <EmojiPicker
+                onPick={(val) => { insertEmoji(val); if (!val.startsWith('[gif]')) setPickerOpen(false); }}
+                onClose={() => setPickerOpen(false)}
+              />
+            </div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Attach drawer */}
       <AnimatePresence>
@@ -634,12 +628,7 @@ export default function MessageInput({
 
       {/* Camera modal */}
       <AnimatePresence>
-        {cameraOpen && (
-          <CameraModal
-            onCapture={handleCameraCapture}
-            onClose={() => setCameraOpen(false)}
-          />
-        )}
+        {cameraOpen && <CameraModal onCapture={handleCameraCapture} onClose={() => setCameraOpen(false)} />}
       </AnimatePresence>
     </div>
   );
