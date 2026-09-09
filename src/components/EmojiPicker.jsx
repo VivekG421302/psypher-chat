@@ -174,7 +174,7 @@ export default function EmojiPicker({ onPick, onClose }) {
       initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
       transition={{ type: 'spring', stiffness: 380, damping: 40 }}
       className="fixed bottom-0 left-0 right-0 z-40 bg-ink-900 border-t border-ink-700 rounded-t-2xl flex flex-col"
-      style={{ height: '52vh', maxHeight: 420 }}
+      style={{ height: 'calc(100dvh - 56px)', maxHeight: '100dvh - 56px' }}
       onClick={e => e.stopPropagation()}
     >
       {/* Handle */}

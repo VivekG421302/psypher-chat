@@ -426,10 +426,17 @@ export default function MessageInput({
         onSend(msg, reply); setPendingFile(null); onCancelReply?.(); clearEditor(); setFileLoading(false);
       };
       if (pendingFile.blobPreview && pendingFile.rawFile) {
+        // Check encoded size before trying — base64 is ~1.37x raw size
+        const encodedSize = pendingFile.rawFile.size * 1.37;
+        const MAX_SOCKET = 18 * 1024 * 1024; // 18MB safe margin under 20MB socket limit
+        if (encodedSize > MAX_SOCKET) {
+          alert(`Video is too large to send (${(pendingFile.rawFile.size / 1024 / 1024).toFixed(1)} MB). Please trim it under 13 MB.`);
+          return;
+        }
         setFileLoading(true);
         const reader = new FileReader();
         reader.onload = ev => doSend(ev.target.result);
-        reader.onerror = () => { alert('Failed to read file.'); setFileLoading(false); };
+        reader.onerror = () => { alert('Failed to read video.'); setFileLoading(false); };
         reader.readAsDataURL(pendingFile.rawFile);
         return;
       }
@@ -472,9 +479,9 @@ export default function MessageInput({
 
       {/* File loading */}
       {fileLoading && (
-        <div className="px-4 pt-2 flex items-center gap-2 text-xs text-mist-500">
-          <div className="w-3 h-3 border border-mist-600 border-t-mist-300 rounded-full animate-spin" />
-          Reading file…
+        <div className="px-4 pt-2 pb-1 flex items-center gap-2 text-xs text-mist-400">
+          <div className="w-3 h-3 border border-mist-600 border-t-signal-400 rounded-full animate-spin" />
+          <span>Preparing video to send… <span className="text-mist-600">(may take a moment)</span></span>
         </div>
       )}
 
