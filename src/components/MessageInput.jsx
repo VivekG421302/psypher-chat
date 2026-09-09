@@ -146,7 +146,7 @@ function RecordingBar({ seconds, analyserRef, onCancel }) {
 
 // ── Main component ───────────────────────────────────────────────────────────
 export default function MessageInput({
-  onSend, onTyping, disabled,
+  onSend, onSendFile, onTyping, disabled,
   editingMessage, onSubmitEdit, onCancelEdit,
   replyingTo, onCancelReply,
 }) {
@@ -372,7 +372,11 @@ export default function MessageInput({
       const reader = new FileReader();
       reader.onload = ev => {
         const reply = replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text } : null;
-        onSend(`[file]audio/webm|Voice note.webm|${ev.target.result}`, reply);
+        if (onSendFile) {
+          onSendFile('audio/webm', 'Voice note.webm', ev.target.result, reply);
+        } else {
+          onSend(`[file]audio/webm|Voice note.webm|${ev.target.result}`, reply);
+        }
         onCancelReply?.();
       };
       reader.readAsDataURL(blob);
@@ -421,26 +425,27 @@ export default function MessageInput({
     if (recording) { stopMicAndSend(); return; }
     const reply = replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text } : null;
     if (pendingFile) {
-      const doSend = (dataUrl) => {
-        const msg = pendingFile.isImage ? `[image]${dataUrl}` : `[file]${pendingFile.mime}|${pendingFile.name}|${dataUrl}`;
-        onSend(msg, reply); setPendingFile(null); onCancelReply?.(); clearEditor(); setFileLoading(false);
+      const sendIt = (dataUrl) => {
+        // Use chunked sendFile for all media — shows instantly in sender chat
+        const sendFn = onSendFile || onSend;
+        if (onSendFile) {
+          onSendFile(pendingFile.mime, pendingFile.name, dataUrl, reply);
+        } else {
+          const msg = pendingFile.isImage ? `[image]${dataUrl}` : `[file]${pendingFile.mime}|${pendingFile.name}|${dataUrl}`;
+          onSend(msg, reply);
+        }
+        setPendingFile(null); onCancelReply?.(); clearEditor(); setFileLoading(false);
+        void sendFn;
       };
       if (pendingFile.blobPreview && pendingFile.rawFile) {
-        // Check encoded size before trying — base64 is ~1.37x raw size
-        const encodedSize = pendingFile.rawFile.size * 1.37;
-        const MAX_SOCKET = 18 * 1024 * 1024; // 18MB safe margin under 20MB socket limit
-        if (encodedSize > MAX_SOCKET) {
-          alert(`Video is too large to send (${(pendingFile.rawFile.size / 1024 / 1024).toFixed(1)} MB). Please trim it under 13 MB.`);
-          return;
-        }
         setFileLoading(true);
         const reader = new FileReader();
-        reader.onload = ev => doSend(ev.target.result);
+        reader.onload = ev => sendIt(ev.target.result);
         reader.onerror = () => { alert('Failed to read video.'); setFileLoading(false); };
         reader.readAsDataURL(pendingFile.rawFile);
         return;
       }
-      doSend(pendingFile.dataUrl); return;
+      sendIt(pendingFile.dataUrl); return;
     }
     const markdown = editorRef.current ? domToMarkdown(editorRef.current).trim() : '';
     if (!markdown) return;

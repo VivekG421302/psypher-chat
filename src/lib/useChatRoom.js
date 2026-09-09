@@ -22,6 +22,21 @@ export function useChatRoom(roomId, identity) {
 
     // All handlers use const arrow functions to avoid TDZ from function hoisting
     const decryptIncoming = async (msg) => {
+      // File messages from chunked transfer are not encrypted — ciphertext IS the dataUrl
+      if (msg.isFile) {
+        const mime = msg.fileMime || '';
+        const name = msg.fileName || 'file';
+        const dataUrl = msg.ciphertext;
+        const isImage = mime.startsWith('image/');
+        const text = isImage ? `[image]${dataUrl}` : `[file]${mime}|${name}|${dataUrl}`;
+        return {
+          id: msg.id, kind: 'message',
+          senderId: msg.senderId, senderName: msg.senderName, senderColor: msg.senderColor,
+          ts: msg.ts, mine: msg.senderId === identity.userId,
+          text, failed: false, edited: false, editedAt: null,
+          reactions: msg.reactions || {}, replyTo: msg.replyTo || null,
+        };
+      }
       const text = await decryptText(msg.ciphertext, roomId);
       return {
         id: msg.id, kind: 'message',
@@ -152,6 +167,33 @@ export function useChatRoom(roomId, identity) {
     socketRef.current.emit('chat:message', { roomId, ciphertext, replyTo });
   }, [roomId]);
 
+  // Chunked file transfer — sends immediately to sender's UI, streams to recipient
+
+  // Chunked file transfer — adds to sender's chat immediately, streams to recipient
+  const sendFile = useCallback(async (mime, name, dataUrl, replyTo = null) => {
+    const socket = socketRef.current;
+    if (!socket || !identity) return;
+    const CHUNK = 48 * 1024;
+    const transferId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const total = Math.ceil(dataUrl.length / CHUNK);
+    // Show in sender's chat immediately
+    const isImg = mime.startsWith('image/');
+    const localText = isImg ? `[image]${dataUrl}` : `[file]${mime}|${name}|${dataUrl}`;
+    setMessages(prev => [...prev, {
+      id: `local-${transferId}`, kind: 'message',
+      senderId: identity.userId, senderName: identity.name, senderColor: identity.color,
+      ts: Date.now(), mine: true, text: localText,
+      failed: false, edited: false, editedAt: null, reactions: {}, replyTo: replyTo || null,
+    }]);
+    // Stream chunks
+    socket.emit('file:start', { roomId, transferId, mime, name, total, replyTo });
+    for (let i = 0; i < total; i++) {
+      socket.emit('file:chunk', { transferId, index: i, data: dataUrl.slice(i * CHUNK, (i + 1) * CHUNK) });
+      if (i % 8 === 7) await new Promise(r => setTimeout(r, 0));
+    }
+    socket.emit('file:end', { transferId });
+  }, [roomId, identity]);
+
   const editMessage = useCallback(async (messageId, text) => {
     if (!text.trim() || !socketRef.current) return;
     const ciphertext = await encryptText(text, roomId);
@@ -179,7 +221,7 @@ export function useChatRoom(roomId, identity) {
   return {
     status, connected, members, messages, typingUser, gameReactions,
     opponentSeenUpTo,
-    sendMessage, editMessage, deleteMessage, reactToMessage, sendGameReaction,
+    sendMessage, sendFile, editMessage, deleteMessage, reactToMessage, sendGameReaction,
     setTyping, leaveRoom, notifyLocal, updateLocal, markSeen,
     socket: socketRef,
   };

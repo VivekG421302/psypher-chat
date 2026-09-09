@@ -544,6 +544,7 @@ export default function Room() {
       ) : (
         <MessageInput
           onSend={chat.sendMessage}
+          onSendFile={chat.sendFile}
           onTyping={chat.setTyping}
           disabled={!chat.connected}
           editingMessage={editingMessage}
