@@ -1,4 +1,6 @@
-const BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+// Use env var if set (local dev), otherwise use the deployed Render backend
+const BASE = import.meta.env.VITE_BACKEND_URL
+  || (import.meta.env.DEV ? 'http://localhost:3000' : 'https://psypher-chat-backend.onrender.com');
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
