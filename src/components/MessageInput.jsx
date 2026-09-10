@@ -6,6 +6,16 @@ import {
   FileText, File, Mic, Video, FolderOpen,
 } from 'lucide-react';
 import EmojiPicker from './EmojiPicker.jsx';
+
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', fn, { passive: true });
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return mobile;
+}
 import CameraModal from './CameraModal.jsx';
 import { domToMarkdown, markdownToHtml, autoFormatEmphasis, startNumberedListIfMatched } from '../lib/richText.jsx';
 
@@ -173,6 +183,7 @@ export default function MessageInput({
   const holdTimeout     = useRef(null);
   const isHoldRef       = useRef(false);  // true = press-hold mode, false = tap mode
 
+  const isMobile   = useIsMobile();
   const isEditing  = !!editingMessage;
   const hasContent = !isEmpty || !!pendingFile;
 
@@ -612,18 +623,27 @@ export default function MessageInput({
         </AnimatePresence>
       </div>
 
-      {/* Emoji / GIF bottom sheet — backdrop closes it */}
+      {/* Emoji / GIF picker — bottom sheet on mobile, floating popup on desktop */}
       <AnimatePresence>
         {pickerOpen && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setPickerOpen(false)} />
-            <div ref={pickerWrapRef} className="relative z-40">
-              <EmojiPicker
-                onPick={(val) => { insertEmoji(val); if (!val.startsWith('[gif]')) setPickerOpen(false); }}
-                onClose={() => setPickerOpen(false)}
-              />
-            </div>
-          </>
+          isMobile ? (
+            <EmojiPicker
+              isMobile
+              onPick={(val) => { insertEmoji(val); if (!val.startsWith('[gif]')) setPickerOpen(false); }}
+              onClose={() => setPickerOpen(false)}
+            />
+          ) : (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setPickerOpen(false)} />
+              <div ref={pickerWrapRef} className="absolute bottom-full left-0 mb-1 z-50">
+                <EmojiPicker
+                  isMobile={false}
+                  onPick={(val) => { insertEmoji(val); if (!val.startsWith('[gif]')) setPickerOpen(false); }}
+                  onClose={() => setPickerOpen(false)}
+                />
+              </div>
+            </>
+          )
         )}
       </AnimatePresence>
 

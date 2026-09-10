@@ -17,9 +17,9 @@ const CATEGORIES = [
   { id: 'food',      label: 'Food',      icon: Pizza,
     emojis: '🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🌽 🥕 🧄 🧅 🥔 🍞 🥐 🥨 🧀 🥚 🍳 🥞 🧇 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🥗 🍿 🍣 🍱 🍜 🍝 🍛 🍤 🍙 🍚 🍦 🍩 🍪 🎂 🍰 🧁 🍫 🍬 🍭 ☕ 🍵 🧋 🥤 🍺 🥂 🍷 🥃 🍸 🍹'.split(' ') },
   { id: 'activities',label: 'Activity',  icon: Trophy,
-    emojis: '⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🎱 🏓 🏸 🥊 🥋 🎯 🎣 🤿 🎽 🛹 🎿 🏆 🥇 🥈 🥉 🎮 🕹️ 🎲 🧩 ♟️ 🎰 🎳 🎨 🎭 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🎻'.split(' ') },
+    emojis: '⚽ 🏀 🏈 ⚾ 🎾 🏐 🏉 🎱 🏓 🏸 🥊 🥋 🎯 🎣 🎽 🛹 🎿 🏆 🥇 🥈 🥉 🎮 🕹️ 🎲 🧩 ♟️ 🎰 🎳 🎨 🎭 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🎻'.split(' ') },
   { id: 'travel',    label: 'Travel',    icon: Car,
-    emojis: '🚗 🚕 🚙 🚌 🏎️ 🚓 🚑 🚒 🚲 🛵 🏍️ ✈️ 🚀 🛸 🚁 ⛵ 🚤 🚂 🚆 🗽 🗼 🏰 🏯 🎡 🎢 ⛲ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏔️ 🏕️ 🏠 🏡 🏢 🌉 🌃 🌌 🎆 🎇 🗺️'.split(' ') },
+    emojis: '🚗 🚕 🚙 🚌 🏎️ 🚓 🚑 🚲 🛵 🏍️ ✈️ 🚀 🛸 🚁 ⛵ 🚤 🚂 🗽 🗼 🏰 🏯 🎡 🎢 ⛲ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏔️ 🏕️ 🏠 🏡 🏢 🌉 🌃 🌌 🎆 🗺️'.split(' ') },
   { id: 'objects',   label: 'Objects',   icon: Lightbulb,
     emojis: '💡 🔦 🕯️ 📱 💻 ⌨️ 🖥️ 📷 🎥 📞 📺 📻 🔋 💰 💎 ⚖️ 🔧 🔨 🛠️ 🔒 🔑 🚪 🛏️ 🚽 ⏰ ⌛ 🧭 🎁 🎀 🎈 🎉 🎊 ✉️ 📩 📦 📌 📎 🔖 💬 💭 🔔 ⚡ ✨ 💫 💯 ✅ ❌ ❓ ❗ ⚠️ ♻️ 🔮'.split(' ') },
 ];
@@ -56,15 +56,18 @@ function GifTab({ onPick }) {
         title:   r.title || '',
         preview: r.images?.fixed_height_small?.url || r.images?.preview_gif?.url || '',
         full:    r.images?.downsized?.url || r.images?.fixed_height?.url || '',
-        h:       Number(r.images?.fixed_height_small?.height || 100),
-        w:       Number(r.images?.fixed_height_small?.width  || 100),
+        aspect:  r.images?.fixed_height_small
+          ? Number(r.images.fixed_height_small.width) / Number(r.images.fixed_height_small.height)
+          : 1,
       })).filter(r => r.preview && r.full));
-    } catch (e) {
-      setError('Could not load GIFs');
-    } finally { setLoading(false); }
+    } catch { setError('Could not load GIFs'); }
+    finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchGifs(''); setTimeout(() => inputRef.current?.focus(), 100); }, [fetchGifs]);
+  useEffect(() => {
+    fetchGifs('');
+    setTimeout(() => inputRef.current?.focus(), 150);
+  }, [fetchGifs]);
 
   const handleSearch = (e) => {
     const val = e.target.value; setQuery(val);
@@ -72,89 +75,75 @@ function GifTab({ onPick }) {
     debounceRef.current = setTimeout(() => fetchGifs(val), 500);
   };
 
-  // Split into 2 columns for Pinterest-style masonry
+  // Pinterest masonry — 2 columns, shortest column gets next GIF
   const [col1, col2] = useMemo(() => {
-    const c1 = [], c2 = [];
-    let h1 = 0, h2 = 0;
+    const c1 = [], c2 = [], h = [0, 0];
     for (const g of gifs) {
-      const ratio = g.w > 0 ? g.h / g.w : 1;
-      const renderH = ratio * 140; // approx rendered height at col width ~140px
-      if (h1 <= h2) { c1.push(g); h1 += renderH; }
-      else          { c2.push(g); h2 += renderH; }
+      const idx = h[0] <= h[1] ? 0 : 1;
+      (idx === 0 ? c1 : c2).push(g);
+      h[idx] += 1 / (g.aspect || 1); // taller portrait = more height units
     }
     return [c1, c2];
   }, [gifs]);
 
-  const GifItem = ({ gif }) => (
-    <button type="button" onClick={() => onPick(`[gif]${gif.full}`)}
-      className="w-full block rounded-xl overflow-hidden cursor-pointer active:scale-95 transition-transform mb-1.5">
-      <img src={gif.preview} alt={gif.title} className="w-full h-auto block" loading="lazy" />
-    </button>
-  );
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Search */}
+    <div className="flex flex-col h-full min-h-0">
       <div className="flex items-center gap-2 px-3 py-2 shrink-0">
-        <div className="flex-1 flex items-center gap-2 bg-ink-700 rounded-full px-3 py-1.5">
+        <div className="flex-1 flex items-center gap-2 bg-ink-800 rounded-full px-3 py-1.5">
           <Search size={13} className="text-mist-600 shrink-0" />
           <input ref={inputRef} value={query} onChange={handleSearch}
-            placeholder="Search GIFs…"
+            placeholder="Search GIFs, memes…"
             className="flex-1 bg-transparent text-xs text-mist-100 placeholder:text-mist-600 outline-none min-w-0" />
           {query && (
             <button type="button" onClick={() => { setQuery(''); fetchGifs(''); }}>
-              <X size={12} className="text-mist-600 hover:text-mist-300" />
+              <X size={12} className="text-mist-600 hover:text-mist-300 cursor-pointer" />
             </button>
           )}
         </div>
       </div>
-
-      {/* Grid */}
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
+      <div className="flex-1 overflow-y-auto px-2 pb-2 min-h-0">
         {loading && (
-          <div className="flex items-center justify-center h-32 gap-2 text-mist-600">
-            <Loader2 size={18} className="animate-spin" />
+          <div className="flex items-center justify-center h-24 gap-2 text-mist-600">
+            <Loader2 size={16} className="animate-spin" />
             <span className="text-xs">Loading…</span>
           </div>
         )}
-        {!loading && error && <p className="text-center text-xs text-red-400 py-8">{error}</p>}
-        {!loading && !error && gifs.length === 0 && <p className="text-center text-xs text-mist-600 py-8">No GIFs found</p>}
+        {!loading && error && <p className="text-center text-xs text-red-400 py-6">{error}</p>}
+        {!loading && !error && gifs.length === 0 && <p className="text-center text-xs text-mist-600 py-6">No GIFs found</p>}
         {!loading && !error && gifs.length > 0 && (
           <div className="flex gap-1.5">
-            <div className="flex-1">{col1.map(g => <GifItem key={g.id} gif={g} />)}</div>
-            <div className="flex-1">{col2.map(g => <GifItem key={g.id} gif={g} />)}</div>
+            <div className="flex-1 flex flex-col gap-1.5">
+              {col1.map(g => (
+                <button key={g.id} type="button" onClick={() => onPick(`[gif]${g.full}`)}
+                  className="w-full block rounded-xl overflow-hidden cursor-pointer active:opacity-70 transition-opacity">
+                  <img src={g.preview} alt={g.title} className="w-full h-auto block" loading="lazy" />
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 flex flex-col gap-1.5">
+              {col2.map(g => (
+                <button key={g.id} type="button" onClick={() => onPick(`[gif]${g.full}`)}
+                  className="w-full block rounded-xl overflow-hidden cursor-pointer active:opacity-70 transition-opacity">
+                  <img src={g.preview} alt={g.title} className="w-full h-auto block" loading="lazy" />
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {!loading && gifs.length > 0 && (
-          <p className="text-center text-[10px] text-mist-700 pb-1">Powered by GIPHY</p>
+          <p className="text-center text-[10px] text-mist-700 pt-2">Powered by GIPHY</p>
         )}
       </div>
     </div>
   );
 }
 
-// ── Emoji grid ────────────────────────────────────────────────────────────────
-function EmojiGrid({ emojis, onPick, empty }) {
-  if (emojis.length === 0) return <p className="col-span-7 text-center text-xs text-mist-600 py-8">{empty}</p>;
-  return (
-    <>
-      {emojis.map((emoji, i) => (
-        <button key={`${emoji}-${i}`} type="button" onClick={() => onPick(emoji)}
-          className="text-xl leading-none aspect-square flex items-center justify-center rounded-xl hover:bg-ink-700 active:scale-90 transition-transform cursor-pointer">
-          {emoji}
-        </button>
-      ))}
-    </>
-  );
-}
-
-// ── Main picker — WhatsApp-style bottom sheet ──────────────────────────────────
-export default function EmojiPicker({ onPick, onClose }) {
-  const [tab,     setTab]     = useState('emoji'); // 'emoji' | 'gif'
+// ── Emoji content (shared between mobile sheet and desktop popup) ──────────────
+function EmojiContent({ onPick, compact = false }) {
+  const [tab,     setTab]     = useState('emoji');
   const [catId,   setCatId]   = useState('recent');
   const [query,   setQuery]   = useState('');
   const [recents, setRecents] = useState(loadRecents);
-  const searchRef = useRef(null);
 
   const results = useMemo(() => {
     if (tab !== 'emoji') return [];
@@ -167,77 +156,118 @@ export default function EmojiPicker({ onPick, onClose }) {
   }, [tab, query, catId, recents]);
 
   const pickEmoji = (emoji) => { setRecents(pushRecent(emoji)); onPick(emoji); };
-  const pickGif   = (val)   => { onPick(val); };
 
   return (
-    <motion.div
-      initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-      transition={{ type: 'spring', stiffness: 380, damping: 40 }}
-      className="fixed bottom-0 left-0 right-0 z-40 bg-ink-900 border-t border-ink-700 rounded-t-2xl flex flex-col"
-      style={{ height: 'calc(100dvh - 56px)', maxHeight: '100dvh - 56px' }}
-      onClick={e => e.stopPropagation()}
-    >
-      {/* Handle */}
-      <div className="w-10 h-1 bg-ink-600 rounded-full mx-auto mt-2.5 mb-1 shrink-0" />
-
-      {/* ── Tab bar ── */}
-      <div className="flex items-center gap-1 px-3 py-1.5 shrink-0">
-        {/* Search box */}
+    <div className="flex flex-col h-full min-h-0">
+      {/* Tab bar */}
+      <div className="flex items-center gap-2 px-3 py-2 shrink-0">
         {tab === 'emoji' && (
-          <div className="flex items-center gap-1.5 bg-ink-800 rounded-full px-3 py-1.5 flex-1 min-w-0 mr-2">
+          <div className="flex-1 flex items-center gap-1.5 bg-ink-800 rounded-full px-3 py-1.5 min-w-0">
             <Search size={13} className="text-mist-600 shrink-0" />
-            <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)}
-              placeholder="Search categories…"
+            <input value={query} onChange={e => setQuery(e.target.value)}
+              placeholder="Search…"
               className="flex-1 bg-transparent text-xs text-mist-100 placeholder:text-mist-600 outline-none min-w-0" />
           </div>
         )}
         {tab === 'gif' && <div className="flex-1" />}
-
-        {/* Emoji / GIF toggle */}
+        {/* Toggle */}
         <div className="flex items-center bg-ink-800 rounded-full p-0.5 shrink-0">
           <button type="button" onClick={() => setTab('emoji')}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${tab === 'emoji' ? 'bg-signal-500 text-white' : 'text-mist-400 hover:text-mist-200'}`}>
-            😊 Emoji
+            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${tab === 'emoji' ? 'bg-signal-500 text-white' : 'text-mist-400 hover:text-mist-200'}`}>
+            😊
           </button>
           <button type="button" onClick={() => setTab('gif')}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-colors cursor-pointer ${tab === 'gif' ? 'bg-signal-500 text-white' : 'text-mist-400 hover:text-mist-200'}`}>
+            className={`px-2.5 py-1 rounded-full text-xs font-bold transition-colors cursor-pointer ${tab === 'gif' ? 'bg-signal-500 text-white' : 'text-mist-400 hover:text-mist-200'}`}>
             GIF
           </button>
         </div>
       </div>
 
-      {/* ── Content ── */}
+      {/* Content */}
       <AnimatePresence mode="wait">
         {tab === 'emoji' ? (
-          <motion.div key="emoji" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div key="e" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex-1 flex flex-col min-h-0">
-            {/* Emoji grid */}
-            <div className="flex-1 overflow-y-auto px-2 py-1 grid grid-cols-8 gap-0.5 content-start">
-              <EmojiGrid emojis={results} onPick={pickEmoji}
-                empty={catId === 'recent' ? 'No recent emoji yet' : 'No matches'} />
+            <div className={`flex-1 overflow-y-auto px-2 py-1 grid content-start ${compact ? 'grid-cols-7 gap-0.5' : 'grid-cols-8 gap-0.5'}`}>
+              {results.length === 0 && (
+                <p className="col-span-8 text-center text-xs text-mist-600 py-6">
+                  {catId === 'recent' ? 'No recent emoji yet' : 'No matches'}
+                </p>
+              )}
+              {results.map((emoji, i) => (
+                <button key={`${emoji}-${i}`} type="button" onClick={() => pickEmoji(emoji)}
+                  className="text-xl leading-none aspect-square flex items-center justify-center rounded-xl hover:bg-ink-700 active:scale-90 transition-all cursor-pointer">
+                  {emoji}
+                </button>
+              ))}
             </div>
-            {/* Category tab row */}
+            {/* Category tabs */}
             <div className="flex items-center gap-0.5 px-2 py-1.5 border-t border-ink-800 overflow-x-auto no-scrollbar shrink-0">
               <button type="button" onClick={() => { setCatId('recent'); setQuery(''); }}
                 className={`shrink-0 p-1.5 rounded-lg cursor-pointer transition-colors ${catId === 'recent' ? 'text-signal-400 bg-signal-700/20' : 'text-mist-500 hover:text-mist-200'}`}>
-                <Clock3 size={16} />
+                <Clock3 size={15} />
               </button>
               {CATEGORIES.map(c => (
                 <button key={c.id} type="button" onClick={() => { setCatId(c.id); setQuery(''); }}
                   className={`shrink-0 p-1.5 rounded-lg cursor-pointer transition-colors ${catId === c.id ? 'text-signal-400 bg-signal-700/20' : 'text-mist-500 hover:text-mist-200'}`}
                   title={c.label}>
-                  <c.icon size={16} />
+                  <c.icon size={15} />
                 </button>
               ))}
             </div>
           </motion.div>
         ) : (
-          <motion.div key="gif" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div key="g" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex-1 min-h-0">
-            <GifTab onPick={pickGif} />
+            <GifTab onPick={onPick} />
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Mobile bottom sheet ───────────────────────────────────────────────────────
+export function EmojiSheet({ onPick, onClose }) {
+  return (
+    <>
+      {/* Backdrop */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
+      {/* Sheet */}
+      <motion.div
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={{ type: 'spring', stiffness: 380, damping: 40 }}
+        className="fixed bottom-0 left-0 right-0 z-50 bg-ink-900 border-t border-ink-700 rounded-t-2xl flex flex-col"
+        style={{ height: 'calc(100dvh - 52px)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="w-10 h-1 bg-ink-600 rounded-full mx-auto mt-2.5 mb-0.5 shrink-0" />
+        <EmojiContent onPick={onPick} />
+      </motion.div>
+    </>
+  );
+}
+
+// ── Desktop floating popup ────────────────────────────────────────────────────
+export function EmojiPopup({ onPick, anchorRef }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 8 }}
+      transition={{ duration: 0.14 }}
+      className="absolute bottom-full left-0 mb-2 z-50 bg-ink-900 border border-ink-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+      style={{ width: 340, height: 380 }}
+      onClick={e => e.stopPropagation()}
+    >
+      <EmojiContent onPick={onPick} compact />
     </motion.div>
   );
+}
+
+// ── Default export: auto-selects sheet vs popup based on screen width ─────────
+export default function EmojiPicker({ onPick, onClose, isMobile }) {
+  if (isMobile) return <EmojiSheet onPick={onPick} onClose={onClose} />;
+  return <EmojiPopup onPick={onPick} />;
 }
