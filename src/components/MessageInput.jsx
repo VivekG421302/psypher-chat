@@ -17,6 +17,7 @@ function useIsMobile() {
   return mobile;
 }
 import CameraModal from './CameraModal.jsx';
+import MediaPreview from './MediaPreview.jsx';
 import { domToMarkdown, markdownToHtml, autoFormatEmphasis, startNumberedListIfMatched } from '../lib/richText.jsx';
 
 const MAX_LENGTH  = 1000;
@@ -169,7 +170,9 @@ export default function MessageInput({
   const [recording,   setRecording]   = useState(false);  // mic-tap mode
   const [recSecs,     setRecSecs]     = useState(0);
   const [fileLoading, setFileLoading] = useState(false);
-  const [micHeld,     setMicHeld]     = useState(false);  // press-hold state
+  const [micHeld,     setMicHeld]     = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [caption,     setCaption]     = useState('');  // press-hold state
 
   const editorRef       = useRef(null);
   const typingActive    = useRef(false);
@@ -318,6 +321,8 @@ export default function MessageInput({
         isImage: false, isAudio: false, isVideo: true,
       });
       setFileLoading(false);
+      setCaption('');
+      setPreviewOpen(true);
     } else {
       const reader = new FileReader();
       reader.onload = ev => {
@@ -329,6 +334,8 @@ export default function MessageInput({
           isVideo: false,
         });
         setFileLoading(false);
+        setCaption('');
+        setPreviewOpen(true);
       };
       reader.onerror = () => { alert('Could not read file.'); setFileLoading(false); };
       reader.readAsDataURL(file);
@@ -341,6 +348,8 @@ export default function MessageInput({
     if (bytes > MAX_BYTES) { alert(`Max ${MAX_FILE_MB} MB`); return; }
     setPendingFile({ name: 'Photo.jpg', mime: 'image/jpeg', size: bytes, dataUrl, isImage: true, isAudio: false });
     setCameraOpen(false);
+    setCaption('');
+    setPreviewOpen(true);
   };
 
   const applyFormat = (cmd) => { editorRef.current?.focus(); document.execCommand(cmd); };
@@ -436,27 +445,24 @@ export default function MessageInput({
     if (recording) { stopMicAndSend(); return; }
     const reply = replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text } : null;
     if (pendingFile) {
-      const sendIt = (dataUrl) => {
-        // Use chunked sendFile for all media — shows instantly in sender chat
-        const sendFn = onSendFile || onSend;
+      const dispatchFile = (dataUrl) => {
         if (onSendFile) {
           onSendFile(pendingFile.mime, pendingFile.name, dataUrl, reply);
         } else {
           const msg = pendingFile.isImage ? `[image]${dataUrl}` : `[file]${pendingFile.mime}|${pendingFile.name}|${dataUrl}`;
           onSend(msg, reply);
         }
-        setPendingFile(null); onCancelReply?.(); clearEditor(); setFileLoading(false);
-        void sendFn;
+        setPendingFile(null); setPreviewOpen(false); onCancelReply?.(); clearEditor(); setFileLoading(false);
       };
       if (pendingFile.blobPreview && pendingFile.rawFile) {
         setFileLoading(true);
         const reader = new FileReader();
-        reader.onload = ev => sendIt(ev.target.result);
-        reader.onerror = () => { alert('Failed to read video.'); setFileLoading(false); };
+        reader.onload = ev => dispatchFile(ev.target.result);
+        reader.onerror = () => { alert('Failed to read file.'); setFileLoading(false); };
         reader.readAsDataURL(pendingFile.rawFile);
         return;
       }
-      sendIt(pendingFile.dataUrl); return;
+      dispatchFile(pendingFile.dataUrl); return;
     }
     const markdown = editorRef.current ? domToMarkdown(editorRef.current).trim() : '';
     if (!markdown) return;
@@ -610,8 +616,8 @@ export default function MessageInput({
               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               onPointerDown={onMicPointerDown}
               onPointerUp={onMicPointerUp}
-              onPointerLeave={onMicPointerUp}
-              onPointerCancel={onMicPointerUp}
+              onPointerLeave={() => { if (micHeld && isHoldRef.current) stopMicAndSend(); }}
+              onPointerCancel={() => { if (micHeld) cancelMic(); }}
               disabled={disabled}
               className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer shadow-lg transition-all select-none touch-none disabled:opacity-30 ${
                 micHeld ? 'bg-red-500 scale-110' : 'bg-signal-500 hover:bg-signal-400'
@@ -661,6 +667,19 @@ export default function MessageInput({
       {/* Camera modal */}
       <AnimatePresence>
         {cameraOpen && <CameraModal onCapture={handleCameraCapture} onClose={() => setCameraOpen(false)} />}
+      </AnimatePresence>
+
+      {/* Media preview — WhatsApp-style before sending */}
+      <AnimatePresence>
+        {previewOpen && pendingFile && (
+          <MediaPreview
+            file={pendingFile}
+            caption={caption}
+            onChangeCaption={setCaption}
+            onSend={submit}
+            onCancel={() => { setPreviewOpen(false); setPendingFile(null); }}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
