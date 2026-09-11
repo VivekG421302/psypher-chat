@@ -34,7 +34,7 @@ function pushRecent(emoji) {
 }
 
 // ── GIF masonry ───────────────────────────────────────────────────────────────
-function GifTab({ onPick }) {
+function GifTab({ onPick, onSearchFocus, onSearchBlur }) {
   const [query,   setQuery]   = useState('');
   const [gifs,    setGifs]    = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +93,8 @@ function GifTab({ onPick }) {
           <Search size={13} className="text-mist-600 shrink-0" />
           <input ref={inputRef} value={query} onChange={handleSearch}
             placeholder="Search GIFs, memes…"
+            onFocus={onSearchFocus}
+            onBlur={onSearchBlur}
             className="flex-1 bg-transparent text-xs text-mist-100 placeholder:text-mist-600 outline-none min-w-0" />
           {query && (
             <button type="button" onClick={() => { setQuery(''); fetchGifs(''); }}>
@@ -139,7 +141,7 @@ function GifTab({ onPick }) {
 }
 
 // ── Emoji content (shared between mobile sheet and desktop popup) ──────────────
-function EmojiContent({ onPick, compact = false }) {
+function EmojiContent({ onPick, compact = false, onSearchFocus, onSearchBlur }) {
   const [tab,     setTab]     = useState('emoji');
   const [catId,   setCatId]   = useState('recent');
   const [query,   setQuery]   = useState('');
@@ -166,6 +168,8 @@ function EmojiContent({ onPick, compact = false }) {
             <Search size={13} className="text-mist-600 shrink-0" />
             <input value={query} onChange={e => setQuery(e.target.value)}
               placeholder="Search…"
+              onFocus={onSearchFocus}
+              onBlur={onSearchBlur}
               className="flex-1 bg-transparent text-xs text-mist-100 placeholder:text-mist-600 outline-none min-w-0" />
           </div>
         )}
@@ -219,7 +223,7 @@ function EmojiContent({ onPick, compact = false }) {
         ) : (
           <motion.div key="g" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex-1 min-h-0">
-            <GifTab onPick={onPick} />
+            <GifTab onPick={onPick} onSearchFocus={onSearchFocus} onSearchBlur={onSearchBlur} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -229,22 +233,53 @@ function EmojiContent({ onPick, compact = false }) {
 
 // ── Mobile bottom sheet ───────────────────────────────────────────────────────
 export function EmojiSheet({ onPick, onClose }) {
+  const [expanded, setExpanded] = useState(false);
+  const [visible,  setVisible]  = useState(false);
+
+  // Mount → slide up
+  useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(onClose, 300);
+  };
+
+  // Auto-expand when search input is focused (keyboard appearing)
+  const handleSearchFocus = () => setExpanded(true);
+  const handleSearchBlur  = () => setExpanded(false);
+
+  const halfH  = '48vh';
+  const fullH  = 'calc(100dvh - 52px)';
+
   return (
     <>
-      {/* Backdrop */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
-      {/* Sheet */}
-      <motion.div
-        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-        transition={{ type: 'spring', stiffness: 380, damping: 40 }}
-        className="fixed bottom-0 left-0 right-0 z-50 bg-ink-900 border-t border-ink-700 rounded-t-2xl flex flex-col"
-        style={{ height: 'calc(100dvh - 52px)' }}
+      {/* Backdrop — tap to close */}
+      <div
+        className="fixed inset-0 z-40 bg-black/30"
+        style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.25s ease' }}
+        onClick={handleClose}
+      />
+      {/* Sheet — pure CSS transition, no framer drag */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 bg-ink-900 border-t border-ink-700 rounded-t-2xl flex flex-col overflow-hidden"
+        style={{
+          height: expanded ? fullH : halfH,
+          transform: visible ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 0.3s cubic-bezier(0.32,0.72,0,1), height 0.25s cubic-bezier(0.32,0.72,0,1)',
+        }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="w-10 h-1 bg-ink-600 rounded-full mx-auto mt-2.5 mb-0.5 shrink-0" />
-        <EmojiContent onPick={onPick} />
-      </motion.div>
+        {/* Handle */}
+        <div
+          className="w-10 h-1 bg-ink-600 rounded-full mx-auto mt-2.5 mb-0.5 shrink-0 cursor-pointer"
+          onClick={handleClose}
+        />
+        <EmojiContent
+          onPick={onPick}
+          onSearchFocus={handleSearchFocus}
+          onSearchBlur={handleSearchBlur}
+        />
+      </div>
     </>
   );
 }
