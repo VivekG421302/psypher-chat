@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Smile as SmileyIcon, Cat, Pizza, Trophy, Car, Lightbulb, Heart, Clock3, Loader2, X } from 'lucide-react';
 
@@ -231,47 +232,62 @@ function EmojiContent({ onPick, compact = false, onSearchFocus, onSearchBlur }) 
   );
 }
 
-// ── Mobile bottom sheet ───────────────────────────────────────────────────────
+// ── Mobile bottom sheet — portalled to body so parent events don't interfere ──
 export function EmojiSheet({ onPick, onClose }) {
   const [expanded, setExpanded] = useState(false);
   const [visible,  setVisible]  = useState(false);
 
-  // Mount → slide up
-  useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
+  useEffect(() => {
+    // Slide up after paint
+    const id = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const handleClose = () => {
     setVisible(false);
-    setTimeout(onClose, 300);
+    setTimeout(onClose, 280);
   };
 
-  // Auto-expand when search input is focused (keyboard appearing)
   const handleSearchFocus = () => setExpanded(true);
   const handleSearchBlur  = () => setExpanded(false);
 
-  const halfH  = '48vh';
-  const fullH  = 'calc(100dvh - 52px)';
-
-  return (
+  const content = (
     <>
-      {/* Backdrop — tap to close */}
+      {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/30"
-        style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.25s ease' }}
-        onClick={handleClose}
-      />
-      {/* Sheet — pure CSS transition, no framer drag */}
-      <div
-        className="fixed bottom-0 left-0 right-0 z-50 bg-ink-900 border-t border-ink-700 rounded-t-2xl flex flex-col overflow-hidden"
         style={{
-          height: expanded ? fullH : halfH,
-          transform: visible ? 'translateY(0)' : 'translateY(100%)',
-          transition: 'transform 0.3s cubic-bezier(0.32,0.72,0,1), height 0.25s cubic-bezier(0.32,0.72,0,1)',
+          position: 'fixed', inset: 0, zIndex: 9998,
+          background: 'rgba(0,0,0,0.35)',
+          opacity: visible ? 1 : 0,
+          transition: 'opacity 0.25s ease',
         }}
-        onClick={e => e.stopPropagation()}
+        onPointerDown={handleClose}
+      />
+      {/* Sheet */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0, left: 0, right: 0,
+          zIndex: 9999,
+          height: expanded ? 'calc(100dvh - 52px)' : '48vh',
+          transform: visible ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 0.28s cubic-bezier(0.32,0.72,0,1), height 0.22s cubic-bezier(0.32,0.72,0,1)',
+          background: 'var(--color-ink-900, #0f1117)',
+          borderTop: '1px solid var(--color-ink-700, #1e2130)',
+          borderRadius: '16px 16px 0 0',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+        onPointerDown={e => e.stopPropagation()}
       >
-        {/* Handle */}
+        {/* Handle — tap to close */}
         <div
-          className="w-10 h-1 bg-ink-600 rounded-full mx-auto mt-2.5 mb-0.5 shrink-0 cursor-pointer"
+          style={{
+            width: 40, height: 4, borderRadius: 999,
+            background: 'var(--color-ink-600, #2a2f45)',
+            margin: '10px auto 4px', flexShrink: 0, cursor: 'pointer',
+          }}
           onClick={handleClose}
         />
         <EmojiContent
@@ -282,6 +298,8 @@ export function EmojiSheet({ onPick, onClose }) {
       </div>
     </>
   );
+
+  return createPortal(content, document.body);
 }
 
 // ── Desktop floating popup ────────────────────────────────────────────────────

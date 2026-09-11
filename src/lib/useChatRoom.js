@@ -186,6 +186,7 @@ export function useChatRoom(roomId, identity) {
     if (!socket || !identity) return;
     const CHUNK = 48 * 1024;
     const transferId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const localId = `local-${transferId}`;          // declare BEFORE use
     const total = Math.ceil(dataUrl.length / CHUNK);
     // Show in sender's chat immediately
     const isImg = mime.startsWith('image/');
@@ -197,7 +198,6 @@ export function useChatRoom(roomId, identity) {
       failed: false, edited: false, editedAt: null, reactions: {}, replyTo: replyTo || null,
     }]);
     // Stream chunks
-    const localId = `local-${transferId}`;
     socket.emit('file:start', { roomId, transferId, localId, mime, name, total, replyTo });
     for (let i = 0; i < total; i++) {
       socket.emit('file:chunk', { transferId, index: i, data: dataUrl.slice(i * CHUNK, (i + 1) * CHUNK) });
