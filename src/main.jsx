@@ -7,6 +7,8 @@ import { ToastProvider } from './context/ToastContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { syncFromIdb } from './lib/storage.js';
 import './styles/index.css';
+import { warmBackend } from './lib/api.js';
+warmBackend(); // Wake up Render backend on app load
 
 syncFromIdb();
 

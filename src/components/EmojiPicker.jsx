@@ -253,7 +253,7 @@ export function EmojiSheet({ onPick, onClose }) {
 
   const content = (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — only close when clicking directly on it, not on children */}
       <div
         style={{
           position: 'fixed', inset: 0, zIndex: 9998,
@@ -261,7 +261,7 @@ export function EmojiSheet({ onPick, onClose }) {
           opacity: visible ? 1 : 0,
           transition: 'opacity 0.25s ease',
         }}
-        onPointerDown={handleClose}
+        onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
       />
       {/* Sheet */}
       <div
@@ -279,7 +279,7 @@ export function EmojiSheet({ onPick, onClose }) {
           flexDirection: 'column',
           overflow: 'hidden',
         }}
-        onPointerDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         {/* Handle — tap to close */}
         <div

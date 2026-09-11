@@ -11,10 +11,12 @@ export function useChatRoom(roomId, identity) {
   const [typingUser, setTypingUser] = useState(null);
   const [gameReactions, setGameReactions] = useState([]);
   const [opponentSeenUpTo, setOpponentSeenUpTo] = useState(0);
-  const typingTimeout = useRef(null);
-  const socketRef     = useRef(null);
+  const typingTimeout  = useRef(null);
+  const socketRef      = useRef(null);
+  const identityRef    = useRef(identity);
 
   useEffect(() => {
+    identityRef.current = identity;
     if (!roomId || !identity?.userId) return undefined;
 
     const socket = getSocket();
@@ -32,7 +34,7 @@ export function useChatRoom(roomId, identity) {
         return {
           id: msg.id, kind: 'message',
           senderId: msg.senderId, senderName: msg.senderName, senderColor: msg.senderColor,
-          ts: msg.ts, mine: msg.senderId === identity.userId,
+          ts: msg.ts, mine: msg.senderId === (identityRef.current?.userId || identity?.userId),
           text, failed: false, edited: false, editedAt: null,
           reactions: msg.reactions || {}, replyTo: msg.replyTo || null,
         };
@@ -183,7 +185,8 @@ export function useChatRoom(roomId, identity) {
   // Chunked file transfer — adds to sender's chat immediately, streams to recipient
   const sendFile = useCallback(async (mime, name, dataUrl, replyTo = null) => {
     const socket = socketRef.current;
-    if (!socket || !identity) return;
+    const id = identityRef.current;
+    if (!socket || !id) return;
     const CHUNK = 48 * 1024;
     const transferId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const localId = `local-${transferId}`;          // declare BEFORE use
@@ -193,7 +196,7 @@ export function useChatRoom(roomId, identity) {
     const localText = isImg ? `[image]${dataUrl}` : `[file]${mime}|${name}|${dataUrl}`;
     setMessages(prev => [...prev, {
       id: localId, kind: 'message',
-      senderId: identity.userId, senderName: identity.name, senderColor: identity.color,
+      senderId: id.userId, senderName: id.name, senderColor: id.color,
       ts: Date.now(), mine: true, text: localText,
       failed: false, edited: false, editedAt: null, reactions: {}, replyTo: replyTo || null,
     }]);
@@ -204,7 +207,7 @@ export function useChatRoom(roomId, identity) {
       if (i % 8 === 7) await new Promise(r => setTimeout(r, 0));
     }
     socket.emit('file:end', { transferId });
-  }, [roomId, identity]);
+  }, [roomId]);
 
   const editMessage = useCallback(async (messageId, text) => {
     if (!text.trim() || !socketRef.current) return;
