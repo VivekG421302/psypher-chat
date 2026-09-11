@@ -138,7 +138,7 @@ export default function CameraModal({ onCapture, onClose }) {
               playsInline
               muted
               className="w-full h-full object-cover"
-              style={{ transform: facingBack ? 'none' : 'scaleX(-1)' }}
+              style={{ transform: 'none' }}
             />
 
             {!ready && (

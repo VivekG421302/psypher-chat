@@ -81,7 +81,18 @@ export function useChatRoom(roomId, identity) {
     };
 
     const onMessage = (msg) => {
-      decryptIncoming(msg).then(d => setMessages(prev => [...prev, d]));
+      decryptIncoming(msg).then(d => {
+        setMessages(prev => {
+          // If this is a file message echoed back to the sender, replace the local copy
+          if (d.mine && msg.localId) {
+            const hasLocal = prev.some(m => m.id === msg.localId);
+            if (hasLocal) {
+              return prev.map(m => m.id === msg.localId ? { ...d, id: msg.localId } : m);
+            }
+          }
+          return [...prev, d];
+        });
+      });
     };
 
     const onEdited = async (payload) => {
@@ -180,13 +191,14 @@ export function useChatRoom(roomId, identity) {
     const isImg = mime.startsWith('image/');
     const localText = isImg ? `[image]${dataUrl}` : `[file]${mime}|${name}|${dataUrl}`;
     setMessages(prev => [...prev, {
-      id: `local-${transferId}`, kind: 'message',
+      id: localId, kind: 'message',
       senderId: identity.userId, senderName: identity.name, senderColor: identity.color,
       ts: Date.now(), mine: true, text: localText,
       failed: false, edited: false, editedAt: null, reactions: {}, replyTo: replyTo || null,
     }]);
     // Stream chunks
-    socket.emit('file:start', { roomId, transferId, mime, name, total, replyTo });
+    const localId = `local-${transferId}`;
+    socket.emit('file:start', { roomId, transferId, localId, mime, name, total, replyTo });
     for (let i = 0; i < total; i++) {
       socket.emit('file:chunk', { transferId, index: i, data: dataUrl.slice(i * CHUNK, (i + 1) * CHUNK) });
       if (i % 8 === 7) await new Promise(r => setTimeout(r, 0));
